@@ -5,7 +5,9 @@ import { ingestMetaWebhook } from "./modules/ingestion/meta-ingestion-service.js
 import {
   classifyAsFlorencia,
   decideHumanGate,
-  draftAsFlorencia
+  decideConversationControl,
+  draftAsFlorencia,
+  escalateAsFlorencia
 } from "./modules/social-inbox/human-gate-service.js";
 import { SocialInboxStore, stableId } from "./modules/social-inbox/social-inbox-store.js";
 import { dashboardHtml } from "./runtime/dashboard-html.js";
@@ -14,6 +16,7 @@ import type { MetaWebhookEnvelope } from "../../../packages/shared/src/types/met
 import type {
   HumanGateActor,
   InboxItemType,
+  EscalationReason,
   SensitivityLevel
 } from "../../../packages/shared/src/types/social-inbox.js";
 
@@ -84,6 +87,81 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/conversation-control") {
+    const body = (await readJson(request)) as Partial<ConversationControlRequest>;
+    decideConversationControl(store, {
+      conversationId: requireString(body.conversationId, "conversationId"),
+      decidedAt: new Date().toISOString(),
+      actorId: requireHumanGateActor(body.actorId),
+      action: requireConversationControlAction(body.action),
+      reason: requireString(body.reason, "reason")
+    });
+    await repository.save(store.snapshot());
+    json(response, 201, { status: "recorded" });
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/operator-intervention") {
+    const body = (await readJson(request)) as Partial<OperatorInterventionRequest>;
+    const conversationId = requireString(body.conversationId, "conversationId");
+    const conversation = store.getConversation(conversationId);
+    if (conversation === undefined) {
+      throw new Error(`Conversation not found: ${conversationId}`);
+    }
+
+    const message = store.addInternalConversationMessage({
+      conversationId,
+      accountId: conversation.accountId,
+      actorId: requireHumanGateActor(body.actorId),
+      text: requireString(body.text, "text"),
+      createdAt: new Date().toISOString()
+    });
+    await repository.save(store.snapshot());
+    json(response, 201, message);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/mkt-agent") {
+    const body = (await readJson(request)) as Partial<MktAgentRequest>;
+    const action = requireMktAgentAction(body.action);
+    const createdAt = new Date().toISOString();
+    const conversationId = requireString(body.conversationId, "conversationId");
+    const inboxItemType = requireInboxItemType(body.inboxItemType);
+    const inboxItemId = requireString(body.inboxItemId, "inboxItemId");
+
+    const result =
+      action === "classify"
+        ? classifyAsFlorencia(store, {
+            inboxItemType,
+            inboxItemId,
+            createdAt,
+            output: requireString(body.output, "output")
+          })
+        : action === "draft"
+          ? draftAsFlorencia(store, {
+              inboxItemType,
+              inboxItemId,
+              createdAt,
+              output: requireString(body.output, "output")
+            })
+          : escalateAsFlorencia(store, {
+              conversationId,
+              inboxItemType,
+              inboxItemId,
+              createdAt,
+              reason: requireEscalationReason(body.escalationReason),
+              detail: requireString(body.output, "output")
+            });
+
+    store.updateConversation(conversationId, {
+      lastAgentActionAt: createdAt,
+      updatedAt: createdAt
+    });
+    await repository.save(store.snapshot());
+    json(response, 201, result);
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/demo-seed") {
     seedDemoData();
     await repository.save(store.snapshot());
@@ -101,6 +179,28 @@ interface HumanGateRequest {
   decision: "approve_internal" | "reject_internal" | "escalate_esteban";
   reason: string;
   sensitivity: SensitivityLevel;
+}
+
+interface ConversationControlRequest {
+  conversationId: string;
+  actorId: HumanGateActor;
+  action: "take_control" | "return_to_agent" | "resolve";
+  reason: string;
+}
+
+interface OperatorInterventionRequest {
+  conversationId: string;
+  actorId: HumanGateActor;
+  text: string;
+}
+
+interface MktAgentRequest {
+  conversationId: string;
+  inboxItemType: InboxItemType;
+  inboxItemId: string;
+  action: "classify" | "draft" | "escalate";
+  output: string;
+  escalationReason?: EscalationReason;
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
@@ -133,6 +233,8 @@ function seedDemoData(): void {
     externalThreadId: "lead-rosario",
     participantExternalId: "lead-rosario",
     status: "pending_human_approval",
+    ownerActorId: "florencia-mkt",
+    lastAgentActionAt: now,
     createdAt: now,
     updatedAt: now
   });
@@ -178,6 +280,21 @@ function seedDemoData(): void {
     createdAt: now,
     output: "Caso sensible: escalar a Esteban antes de responder."
   });
+  escalateAsFlorencia(store, {
+    conversationId: conversation.id,
+    inboxItemType: "message",
+    inboxItemId: message.id,
+    createdAt: now,
+    reason: "missing_info",
+    detail: "Falta confirmar disponibilidad real, horario y precio vigente antes de responder."
+  });
+  store.addInternalConversationMessage({
+    conversationId: conversation.id,
+    accountId: account.id,
+    actorId: "operador-humano",
+    text: "Nota interna: validar cupos del dia y precio actual antes de enviar respuesta.",
+    createdAt: now
+  });
   store.addAuditLog({
     id: stableId("audit", "demo-seed", now),
     actorId: "system",
@@ -221,11 +338,35 @@ function requireInboxItemType(value: unknown): InboxItemType {
 }
 
 function requireHumanGateActor(value: unknown): HumanGateActor {
-  if (value === "florencia-mkt" || value === "esteban" || value === "system") {
+  if (value === "florencia-mkt" || value === "esteban" || value === "operador-humano" || value === "system") {
     return value;
   }
 
   throw new Error("decidedBy is invalid");
+}
+
+function requireConversationControlAction(value: unknown): ConversationControlRequest["action"] {
+  if (value === "take_control" || value === "return_to_agent" || value === "resolve") {
+    return value;
+  }
+
+  throw new Error("conversation control action is invalid");
+}
+
+function requireMktAgentAction(value: unknown): MktAgentRequest["action"] {
+  if (value === "classify" || value === "draft" || value === "escalate") {
+    return value;
+  }
+
+  throw new Error("MKT agent action is invalid");
+}
+
+function requireEscalationReason(value: unknown): EscalationReason {
+  if (value === "ambiguous" || value === "missing_info" || value === "sensitive") {
+    return value;
+  }
+
+  throw new Error("escalationReason is invalid");
 }
 
 function requireSensitivity(value: unknown): SensitivityLevel {

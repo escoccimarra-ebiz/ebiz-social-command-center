@@ -1,6 +1,7 @@
 import type {
   AgentAction,
   Approval,
+  EscalationReason,
   HumanGateActor,
   InboxItemType,
   SensitivityLevel
@@ -24,6 +25,23 @@ interface HumanGateParams extends InboxItemRef {
   decision: "approve_internal" | "reject_internal" | "escalate_esteban";
   reason: string;
   sensitivity: SensitivityLevel;
+}
+
+interface ConversationControlParams {
+  conversationId: string;
+  decidedAt: string;
+  actorId: HumanGateActor;
+  action: "take_control" | "return_to_agent" | "resolve";
+  reason: string;
+}
+
+interface EscalationParams {
+  conversationId: string;
+  inboxItemType: InboxItemType;
+  inboxItemId: string;
+  createdAt: string;
+  reason: EscalationReason;
+  detail: string;
 }
 
 export function classifyAsFlorencia(
@@ -80,6 +98,88 @@ export function draftAsFlorencia(store: SocialInboxStore, params: FlorenciaActio
   });
 
   return action;
+}
+
+export function escalateAsFlorencia(store: SocialInboxStore, params: EscalationParams): AgentAction {
+  if (params.detail.trim().length === 0) {
+    throw new Error("Escalations require an audit detail");
+  }
+
+  const output = `Escalar a operador humano por ${params.reason}: ${params.detail}`;
+  const action = store.addAgentAction({
+    id: stableId("agent-action", "florencia-mkt", "escalate", params.inboxItemId, params.createdAt),
+    agentId: "florencia-mkt",
+    action: "escalate",
+    inboxItemType: params.inboxItemType,
+    inboxItemId: params.inboxItemId,
+    status: "suggested",
+    createdAt: params.createdAt,
+    output
+  });
+
+  store.updateConversation(params.conversationId, {
+    status: params.reason === "sensitive" ? "requires_esteban" : "pending_human_approval",
+    ownerActorId: params.reason === "sensitive" ? "esteban" : "operador-humano",
+    lastAgentActionAt: params.createdAt,
+    escalationReason: params.reason,
+    updatedAt: params.createdAt
+  });
+
+  store.addAuditLog({
+    id: stableId("audit", action.id),
+    actorId: "florencia-mkt",
+    action: "agent.escalated_to_human",
+    entityType: "conversation",
+    entityId: params.conversationId,
+    createdAt: params.createdAt,
+    metadata: {
+      agentActionId: action.id,
+      reason: params.reason,
+      detail: params.detail,
+      externalResponseBlocked: true
+    }
+  });
+
+  return action;
+}
+
+export function decideConversationControl(
+  store: SocialInboxStore,
+  params: ConversationControlParams
+): void {
+  if (params.reason.trim().length === 0) {
+    throw new Error("Conversation control changes require an audit reason");
+  }
+
+  assertExternalResponseStillBlocked();
+
+  const status =
+    params.action === "take_control"
+      ? "pending_human_approval"
+      : params.action === "return_to_agent"
+        ? "normalized"
+        : "archived";
+
+  store.updateConversation(params.conversationId, {
+    status,
+    ownerActorId: params.action === "return_to_agent" ? "florencia-mkt" : params.actorId,
+    lastHumanInterventionAt:
+      params.action === "take_control" || params.action === "resolve" ? params.decidedAt : undefined,
+    updatedAt: params.decidedAt
+  });
+
+  store.addAuditLog({
+    id: stableId("audit", "conversation-control", params.action, params.conversationId, params.decidedAt),
+    actorId: params.actorId,
+    action: `conversation.${params.action}`,
+    entityType: "conversation",
+    entityId: params.conversationId,
+    createdAt: params.decidedAt,
+    metadata: {
+      reason: params.reason,
+      externalResponseBlocked: true
+    }
+  });
 }
 
 export function decideHumanGate(store: SocialInboxStore, params: HumanGateParams): Approval {

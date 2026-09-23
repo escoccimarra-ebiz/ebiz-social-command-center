@@ -4,6 +4,7 @@ import type {
   AuditLogEntry,
   Assignment,
   Conversation,
+  HumanGateActor,
   InboxItemType,
   SocialAccount,
   SocialComment,
@@ -58,6 +59,33 @@ export class SocialInboxStore {
     return this.upsert(this.state.conversations, conversation);
   }
 
+  getConversation(conversationId: string): Conversation | undefined {
+    return this.state.conversations.find((conversation) => conversation.id === conversationId);
+  }
+
+  updateConversation(
+    conversationId: string,
+    patch: Partial<
+      Pick<
+        Conversation,
+        | "status"
+        | "ownerActorId"
+        | "lastHumanInterventionAt"
+        | "lastAgentActionAt"
+        | "escalationReason"
+        | "updatedAt"
+      >
+    >
+  ): Conversation {
+    const conversation = this.getConversation(conversationId);
+    if (conversation === undefined) {
+      throw new Error(`Conversation not found: ${conversationId}`);
+    }
+
+    Object.assign(conversation, patch);
+    return conversation;
+  }
+
   upsertMessage(message: SocialMessage): SocialMessage {
     return this.upsert(this.state.messages, message);
   }
@@ -89,6 +117,49 @@ export class SocialInboxStore {
   addAgentAction(action: AgentAction): AgentAction {
     this.state.agentActions.push(action);
     return action;
+  }
+
+  addInternalConversationMessage(params: {
+    conversationId: string;
+    accountId: string;
+    actorId: HumanGateActor;
+    text: string;
+    createdAt: string;
+  }): SocialMessage {
+    const message = this.upsertMessage({
+      id: stableId("message", "internal", params.conversationId, params.actorId, params.createdAt),
+      accountId: params.accountId,
+      conversationId: params.conversationId,
+      externalId: stableId("internal", params.actorId, params.createdAt),
+      direction: "internal",
+      text: params.text,
+      authorExternalId: params.actorId,
+      status: "approved_internal",
+      receivedAt: params.createdAt,
+      createdAt: params.createdAt
+    });
+
+    this.addAuditLog({
+      id: stableId("audit", "operator-intervention", message.id),
+      actorId: params.actorId,
+      action: "conversation.operator_intervention_recorded",
+      entityType: "conversation",
+      entityId: params.conversationId,
+      createdAt: params.createdAt,
+      metadata: {
+        messageId: message.id,
+        externalResponseBlocked: true
+      }
+    });
+
+    this.updateConversation(params.conversationId, {
+      status: "pending_human_approval",
+      ownerActorId: params.actorId,
+      lastHumanInterventionAt: params.createdAt,
+      updatedAt: params.createdAt
+    });
+
+    return message;
   }
 
   approveInternal(params: {
