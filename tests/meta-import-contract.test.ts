@@ -61,12 +61,17 @@ describe("Meta import contract", () => {
       importedComments: 1
     });
     assert.equal(snapshot.socialAccounts.length, 1);
+    assert.equal(snapshot.participantProfiles.length, 2);
     assert.equal(snapshot.conversations.length, 1);
     assert.equal(snapshot.messages.length, 1);
     assert.equal(snapshot.comments.length, 1);
     assert.equal(snapshot.auditLog.length, 2);
     assert.equal(snapshot.messages[0]?.text, "Hola, quiero info del cowork");
     assert.equal(snapshot.comments[0]?.text, "Me interesa");
+    assert.equal(snapshot.conversations[0]?.participantProfileId, "profile:meta:instagram:17841400000000000:user-1");
+    assert.equal(snapshot.participantProfiles[0]?.displayName, "Instagram user-1");
+    assert.equal(snapshot.participantProfiles[1]?.displayName, "@prospecto");
+    assert.equal(snapshot.participantProfiles[1]?.profileUrl, "https://www.instagram.com/prospecto/");
   });
 
   it("verifies Meta-style HMAC signatures without storing secrets", () => {
@@ -95,4 +100,3 @@ describe("Meta import contract", () => {
     );
   });
 });
-

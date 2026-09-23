@@ -230,6 +230,7 @@ function seedDemoData(): void {
   const conversation = store.upsertConversation({
     id: "conversation:meta:instagram:ebiz-demo:lead-rosario",
     accountId: account.id,
+    participantProfileId: "profile:meta:instagram:ebiz-demo:lead-rosario",
     externalThreadId: "lead-rosario",
     participantExternalId: "lead-rosario",
     status: "pending_human_approval",
@@ -237,6 +238,18 @@ function seedDemoData(): void {
     lastAgentActionAt: now,
     createdAt: now,
     updatedAt: now
+  });
+  store.upsertParticipantProfile({
+    id: "profile:meta:instagram:ebiz-demo:lead-rosario",
+    provider: "meta",
+    channel: "instagram",
+    externalId: "lead-rosario",
+    displayName: "@lead_rosario",
+    username: "lead_rosario",
+    profileUrl: "https://www.instagram.com/lead_rosario/",
+    kind: "prospect",
+    lastSeenAt: now,
+    createdAt: now
   });
   const message = store.upsertMessage({
     id: "message:meta:instagram:ebiz-demo:lead-coworking-001",

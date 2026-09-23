@@ -6,6 +6,7 @@ import type {
 } from "../../../shared/src/types/meta-webhook.js";
 import type {
   Conversation,
+  ParticipantProfile,
   SocialAccount,
   SocialComment,
   SocialMessage
@@ -15,13 +16,15 @@ export type ImportedMetaEvent =
   | {
       type: "message";
       account: SocialAccount;
+      participantProfile: ParticipantProfile;
       conversation: Conversation;
       message: SocialMessage;
     }
   | {
       type: "comment";
       account: SocialAccount;
-      comment: SocialComment;
+    comment: SocialComment;
+      participantProfile: ParticipantProfile;
     };
 
 export function verifyMetaSignature(params: {
@@ -91,6 +94,7 @@ function importMessage(
   const conversation: Conversation = {
     id: `conversation:${account.id}:${messageEvent.sender.id}`,
     accountId: account.id,
+    participantProfileId: profileId(account, messageEvent.sender.id),
     externalThreadId: messageEvent.sender.id,
     participantExternalId: messageEvent.sender.id,
     status: "received",
@@ -101,6 +105,7 @@ function importMessage(
   return {
     type: "message",
     account,
+    participantProfile: makeParticipantProfile(account, messageEvent.sender.id, receivedAt),
     conversation,
     message: {
       id: `message:${account.id}:${messageEvent.message?.mid}`,
@@ -138,10 +143,16 @@ function importComment(
       ? isoFromUnixSeconds(changeEvent.value.created_time)
       : isoFromUnixSeconds(fallbackUnixSeconds);
 
-  return {
-    type: "comment",
-    account,
-    comment: {
+    return {
+      type: "comment",
+      account,
+      participantProfile: makeParticipantProfile(
+        account,
+        changeEvent.value.from?.id ?? "unknown",
+        receivedAt,
+        changeEvent.value.from?.username
+      ),
+      comment: {
       id: `comment:${account.id}:${externalId}`,
       accountId: account.id,
       externalId,
@@ -156,6 +167,35 @@ function importComment(
   };
 }
 
+function makeParticipantProfile(
+  account: SocialAccount,
+  externalId: string,
+  seenAt: string,
+  username?: string
+): ParticipantProfile {
+  const displayName = username === undefined ? `Instagram ${shortId(externalId)}` : `@${username}`;
+  return {
+    id: profileId(account, externalId),
+    provider: "meta",
+    channel: account.channel,
+    externalId,
+    displayName,
+    username,
+    profileUrl: username === undefined ? undefined : `https://www.instagram.com/${username}/`,
+    kind: "unknown",
+    lastSeenAt: seenAt,
+    createdAt: seenAt
+  };
+}
+
+function profileId(account: SocialAccount, externalId: string): string {
+  return `profile:${account.id}:${externalId}`;
+}
+
+function shortId(externalId: string): string {
+  return externalId.length <= 8 ? externalId : `${externalId.slice(0, 4)}...${externalId.slice(-4)}`;
+}
+
 function isoFromUnixMs(unixMs: number): string {
   return new Date(unixMs).toISOString();
 }
@@ -163,4 +203,3 @@ function isoFromUnixMs(unixMs: number): string {
 function isoFromUnixSeconds(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toISOString();
 }
-

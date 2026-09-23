@@ -32,6 +32,9 @@ function normalizeState(input: Partial<SocialInboxState>): SocialInboxState {
 
   return {
     socialAccounts: Array.isArray(input.socialAccounts) ? input.socialAccounts : empty.socialAccounts,
+    participantProfiles: Array.isArray(input.participantProfiles)
+      ? input.participantProfiles
+      : empty.participantProfiles,
     conversations: Array.isArray(input.conversations) ? input.conversations : empty.conversations,
     messages: Array.isArray(input.messages) ? input.messages : empty.messages,
     comments: Array.isArray(input.comments) ? input.comments : empty.comments,

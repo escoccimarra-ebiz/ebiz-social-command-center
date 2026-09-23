@@ -8,148 +8,168 @@ export const dashboardHtml = String.raw`<!doctype html>
       :root {
         color-scheme: light;
         --blue: #0077ff;
-        --charcoal: #202733;
+        --blue-soft: #eaf4ff;
+        --nav: #202733;
+        --nav-2: #18202c;
         --ink: #1a1a1a;
-        --neutral: #6b7280;
+        --muted: #6b7280;
         --line: #dde3eb;
-        --soft: #f4f7fb;
+        --bg: #f5f7fa;
         --white: #ffffff;
-        --danger: #b42318;
+        --ok: #12805c;
         --warn: #a15c00;
-        --ok: #177245;
+        --danger: #b42318;
       }
 
-      * {
-        box-sizing: border-box;
-      }
-
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        background: var(--soft);
         color: var(--ink);
-        font-family:
-          Montserrat, "Aptos", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--bg);
+        font-family: Montserrat, "Aptos", "Segoe UI", system-ui, sans-serif;
       }
-
-      button,
-      select,
-      textarea {
-        font: inherit;
-      }
-
+      button, input, select, textarea { font: inherit; }
       button {
         min-height: 36px;
         border: 1px solid var(--line);
         border-radius: 6px;
         background: var(--white);
-        color: var(--charcoal);
+        color: var(--ink);
+        font-weight: 650;
         cursor: pointer;
-        font-weight: 600;
       }
-
-      button.primary {
-        border-color: var(--blue);
-        background: var(--blue);
-        color: var(--white);
-      }
-
-      button.dark {
-        border-color: var(--charcoal);
-        background: var(--charcoal);
-        color: var(--white);
-      }
-
-      button.danger {
-        border-color: #f0b6b0;
-        color: var(--danger);
-      }
-
-      textarea,
-      select {
+      button.primary { background: var(--blue); border-color: var(--blue); color: var(--white); }
+      button.dark { background: var(--nav); border-color: var(--nav); color: var(--white); }
+      button.danger { color: var(--danger); border-color: #f0b6b0; }
+      textarea, select, input {
         width: 100%;
         border: 1px solid var(--line);
         border-radius: 6px;
         background: var(--white);
         color: var(--ink);
       }
+      textarea { min-height: 82px; resize: vertical; padding: 10px; }
+      select, input { min-height: 36px; padding: 8px 10px; }
 
-      textarea {
-        min-height: 88px;
-        padding: 10px;
-        resize: vertical;
-      }
-
-      select {
-        min-height: 36px;
-        padding: 7px 9px;
-      }
-
-      .shell {
+      .app {
         min-height: 100vh;
         display: grid;
-        grid-template-rows: auto 1fr;
+        grid-template-columns: 232px 1fr;
+      }
+      .nav {
+        background: var(--nav);
+        color: #cbd5e1;
+        padding: 18px 12px;
+        display: grid;
+        align-content: start;
+        gap: 24px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 10px;
+        color: var(--white);
+        font-weight: 800;
+      }
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--white);
+        color: var(--blue);
+      }
+      .nav-section { display: grid; gap: 6px; }
+      .nav-label {
+        padding: 0 10px 5px;
+        color: #8fa0b8;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 38px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        color: #d9e2ee;
+        font-weight: 650;
+      }
+      .nav-item.active {
+        background: #143b66;
+        color: var(--white);
+        box-shadow: inset 3px 0 0 var(--blue);
       }
 
+      .main {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+      }
       .topbar {
+        min-height: 64px;
+        background: var(--white);
+        border-bottom: 1px solid var(--line);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 18px;
-        background: var(--white);
-        border-bottom: 1px solid var(--line);
-        padding: 14px 18px;
+        gap: 16px;
+        padding: 12px 24px;
       }
+      .crumbs { color: var(--muted); font-size: 13px; }
+      .top-actions { display: flex; align-items: center; gap: 12px; }
+      .search { width: 240px; }
+      .status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
 
-      .brand {
+      .page-head {
+        padding: 24px;
         display: grid;
-        gap: 2px;
+        gap: 16px;
       }
-
-      .brand strong {
-        color: var(--charcoal);
-        font-size: 18px;
-      }
-
-      .brand span,
-      .runtime {
-        color: var(--neutral);
-        font-size: 12px;
-        font-weight: 500;
-      }
-
-      .runtime {
+      .title-row {
         display: flex;
-        align-items: center;
-        gap: 8px;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: end;
       }
-
-      .dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        background: var(--ok);
-      }
-
-      .layout {
-        min-height: 0;
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 32px; line-height: 1.1; }
+      .subtitle { color: var(--muted); margin-top: 6px; }
+      .metrics {
         display: grid;
-        grid-template-columns: 340px minmax(0, 1fr) 360px;
+        grid-template-columns: repeat(5, minmax(140px, 1fr));
+        gap: 12px;
       }
-
-      .column {
-        min-height: 0;
+      .metric, .card {
         background: var(--white);
-        border-right: 1px solid var(--line);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+      }
+      .metric { padding: 14px 16px; }
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+      .metric strong { display: block; font-size: 28px; margin-top: 6px; }
+
+      .workspace {
+        min-height: 0;
+        padding: 0 24px 24px;
         display: grid;
-        grid-template-rows: auto 1fr;
+        grid-template-columns: 360px minmax(0, 1fr) 360px;
+        gap: 16px;
       }
-
-      .column:last-child {
-        border-right: 0;
-        border-left: 1px solid var(--line);
-      }
-
-      .section-head {
+      .card { min-height: 0; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+      .card-head {
         padding: 14px 16px;
         border-bottom: 1px solid var(--line);
         display: flex;
@@ -157,37 +177,8 @@ export const dashboardHtml = String.raw`<!doctype html>
         justify-content: space-between;
         gap: 10px;
       }
-
-      h1,
-      h2,
-      h3 {
-        margin: 0;
-        color: var(--charcoal);
-      }
-
-      h2 {
-        font-size: 15px;
-      }
-
-      h3 {
-        font-size: 13px;
-      }
-
-      .toolbar,
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .toolbar button,
-      .actions button {
-        padding: 7px 10px;
-      }
-
-      .inbox-list {
-        overflow: auto;
-      }
+      .card-head h2 { font-size: 16px; }
+      .inbox-list, .thread, .side-scroll { overflow: auto; }
 
       .thread-row {
         width: 100%;
@@ -195,301 +186,230 @@ export const dashboardHtml = String.raw`<!doctype html>
         border-bottom: 1px solid var(--line);
         border-radius: 0;
         background: var(--white);
-        padding: 14px 16px;
         text-align: left;
+        padding: 14px 16px;
       }
-
-      .thread-row.active {
-        background: #eef6ff;
-        box-shadow: inset 4px 0 0 var(--blue);
-      }
-
-      .thread-top {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 8px;
-      }
-
-      .thread-title {
-        font-weight: 700;
-        color: var(--charcoal);
-      }
-
-      .thread-preview,
-      .muted {
-        color: var(--neutral);
-        font-size: 12px;
-        line-height: 1.35;
-      }
-
-      .workspace {
-        min-width: 0;
+      .thread-row.active { background: var(--blue-soft); box-shadow: inset 4px 0 0 var(--blue); }
+      .person-line { display: flex; gap: 10px; align-items: center; }
+      .avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: var(--nav);
+        color: var(--white);
         display: grid;
-        grid-template-rows: auto 1fr auto;
-        min-height: 0;
+        place-items: center;
+        font-weight: 800;
+        flex: 0 0 auto;
       }
+      .person-main { min-width: 0; flex: 1; }
+      .person-main strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .muted, .preview { color: var(--muted); font-size: 12px; line-height: 1.35; }
+      .preview { margin-top: 9px; }
+      .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 750;
+        color: var(--muted);
+        background: var(--white);
+      }
+      .badge.blue { border-color: #b7d8ff; color: var(--blue); }
+      .badge.warn { border-color: #f0cd9a; color: var(--warn); }
+      .badge.danger { border-color: #efaaa3; color: var(--danger); }
+      .badge.ok { border-color: #99d3b5; color: var(--ok); }
 
       .conversation-head {
-        padding: 18px 22px;
+        padding: 18px 20px;
         border-bottom: 1px solid var(--line);
         background: var(--white);
       }
-
       .conversation-title {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 10px;
-      }
-
-      .badges {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 7px;
-      }
-
-      .badge {
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        color: var(--neutral);
-        background: var(--white);
-        padding: 4px 8px;
-        font-size: 11px;
-        font-weight: 600;
-      }
-
-      .badge.blue {
-        border-color: #b7d8ff;
-        color: var(--blue);
-      }
-
-      .badge.warn {
-        border-color: #f0cd9a;
-        color: var(--warn);
-      }
-
-      .badge.danger {
-        border-color: #efaaa3;
-        color: var(--danger);
-      }
-
-      .badge.ok {
-        border-color: #99d3b5;
-        color: var(--ok);
-      }
-
-      .timeline {
-        min-height: 0;
-        overflow: auto;
-        padding: 22px;
-        display: grid;
-        align-content: start;
         gap: 14px;
       }
-
-      .bubble {
-        max-width: min(760px, 86%);
+      .conversation-title h2 { font-size: 24px; }
+      .thread {
+        padding: 20px;
+        display: grid;
+        align-content: start;
+        gap: 12px;
+        background: #f8fafc;
+      }
+      .message {
+        max-width: 76%;
         border: 1px solid var(--line);
-        background: var(--white);
         border-radius: 8px;
-        padding: 12px 14px;
-        box-shadow: 0 1px 0 rgba(32, 39, 51, 0.04);
+        padding: 11px 13px;
+        background: var(--white);
       }
-
-      .bubble.internal {
-        margin-left: auto;
-        background: var(--charcoal);
-        color: var(--white);
-        border-color: var(--charcoal);
-      }
-
-      .bubble.agent {
-        border-color: #b7d8ff;
-        background: #f6fbff;
-      }
-
-      .bubble.audit {
-        max-width: 100%;
-        background: transparent;
-        border-style: dashed;
-        box-shadow: none;
-      }
-
-      .bubble strong {
-        display: block;
-        font-size: 12px;
-        margin-bottom: 5px;
-      }
-
-      .bubble p {
-        margin: 0;
-        white-space: pre-wrap;
-        line-height: 1.45;
-      }
-
-      .bubble small {
-        display: block;
-        margin-top: 7px;
-        color: var(--neutral);
-      }
-
-      .bubble.internal small {
-        color: #cbd5e1;
-      }
-
+      .message.internal { margin-left: auto; background: var(--nav); border-color: var(--nav); color: var(--white); }
+      .message strong { display: block; font-size: 12px; margin-bottom: 5px; }
+      .message p { white-space: pre-wrap; line-height: 1.45; }
+      .message small { display: block; margin-top: 7px; color: var(--muted); }
+      .message.internal small { color: #cbd5e1; }
       .composer {
+        padding: 14px;
+        border-top: 1px solid var(--line);
+        background: var(--white);
         display: grid;
         grid-template-columns: 1fr auto;
         gap: 10px;
-        padding: 14px 18px;
-        background: var(--white);
-        border-top: 1px solid var(--line);
       }
 
-      .side-body {
-        overflow: auto;
-        padding: 16px;
-        display: grid;
-        align-content: start;
-        gap: 18px;
-      }
-
-      .block {
+      .side-scroll { padding: 16px; display: grid; align-content: start; gap: 16px; }
+      .profile-card {
         display: grid;
         gap: 10px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--line);
       }
-
-      .divider {
-        height: 1px;
-        background: var(--line);
+      .profile-card .avatar { width: 52px; height: 52px; }
+      .form-block { display: grid; gap: 9px; }
+      .form-block h3 { font-size: 14px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .actions button { padding: 7px 10px; }
+      .audit {
+        display: grid;
+        gap: 8px;
       }
-
-      .empty {
-        color: var(--neutral);
-        padding: 24px;
-        text-align: center;
+      .audit-row {
+        border: 1px dashed var(--line);
+        border-radius: 6px;
+        padding: 8px 10px;
+        background: #fbfcfe;
       }
+      .audit-row strong { display: block; font-size: 12px; }
+      .empty { color: var(--muted); text-align: center; padding: 28px; }
 
-      @media (max-width: 1180px) {
-        .layout {
-          grid-template-columns: 320px minmax(0, 1fr);
-        }
-
-        .column:last-child {
-          grid-column: 1 / -1;
-          border-left: 0;
-          border-top: 1px solid var(--line);
-        }
+      @media (max-width: 1200px) {
+        .workspace { grid-template-columns: 320px minmax(0, 1fr); }
+        .workspace .card:last-child { grid-column: 1 / -1; }
+        .metrics { grid-template-columns: repeat(3, minmax(140px, 1fr)); }
       }
-
-      @media (max-width: 760px) {
-        .layout {
-          grid-template-columns: 1fr;
-        }
-
-        .column {
-          border-right: 0;
-          border-bottom: 1px solid var(--line);
-        }
-
-        .conversation-title,
-        .composer {
-          grid-template-columns: 1fr;
-          display: grid;
-        }
+      @media (max-width: 820px) {
+        .app { grid-template-columns: 1fr; }
+        .nav { display: none; }
+        .workspace, .metrics { grid-template-columns: 1fr; }
+        .composer { grid-template-columns: 1fr; }
       }
     </style>
   </head>
   <body>
-    <div class="shell">
-      <header class="topbar">
-        <div class="brand">
-          <strong>eBiz Social Command Center</strong>
-          <span>MVP1.2 · Inbox operativo con gate humano</span>
+    <div class="app">
+      <aside class="nav">
+        <div class="brand"><div class="brand-mark">e</div><div>eBiz</div></div>
+        <div class="nav-section">
+          <div class="nav-label">Overview</div>
+          <div class="nav-item active">Dashboard</div>
         </div>
-        <div class="runtime"><span class="dot"></span><span id="runtime-status">Conectando</span></div>
-      </header>
+        <div class="nav-section">
+          <div class="nav-label">Work</div>
+          <div class="nav-item active">Social Inbox</div>
+          <div class="nav-item">Aprobaciones</div>
+          <div class="nav-item">Actividad</div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-label">AI Workforce</div>
+          <div class="nav-item">Florencia-MKT</div>
+          <div class="nav-item">Operadores</div>
+          <div class="nav-item">Reglas</div>
+        </div>
+      </aside>
 
-      <main class="layout">
-        <aside class="column">
-          <div class="section-head">
-            <h2>Inbox</h2>
-            <div class="toolbar">
+      <main class="main">
+        <header class="topbar">
+          <div class="crumbs">eBiz / Produccion / Social Command Center</div>
+          <div class="top-actions">
+            <input class="search" id="search" placeholder="Buscar remitente o mensaje..." />
+            <div class="status"><span class="dot"></span><span id="runtime-status">Conectando</span></div>
+          </div>
+        </header>
+
+        <section class="page-head">
+          <div class="title-row">
+            <div>
+              <h1>Social Command Center</h1>
+              <p class="subtitle">Inbox operativo para Florencia-MKT, operadores humanos y escalamiento ejecutivo.</p>
+            </div>
+            <div class="actions">
               <button class="primary" id="refresh">Actualizar</button>
               <button id="seed">Demo</button>
             </div>
           </div>
-          <div class="inbox-list" id="threads"></div>
-        </aside>
-
-        <section class="workspace">
-          <div class="conversation-head" id="conversation-head"></div>
-          <div class="timeline" id="timeline"></div>
-          <div class="composer">
-            <textarea id="operator-text" placeholder="Intervencion interna del operador humano"></textarea>
-            <button class="dark" id="operator-send">Registrar intervencion</button>
-          </div>
+          <div class="metrics" id="metrics"></div>
         </section>
 
-        <aside class="column">
-          <div class="section-head">
-            <h2>Gestion MKT</h2>
-          </div>
-          <div class="side-body">
-            <div class="block">
-              <h3>Agente MKT</h3>
-              <textarea id="mkt-output" placeholder="Clasificacion, borrador o motivo de escalamiento"></textarea>
-              <select id="escalation-reason">
-                <option value="ambiguous">Informacion ambigua</option>
-                <option value="missing_info">Informacion ausente</option>
-                <option value="sensitive">Caso sensible</option>
-              </select>
-              <div class="actions">
-                <button data-agent-action="classify">Clasificar</button>
-                <button class="primary" data-agent-action="draft">Borrador</button>
-                <button class="danger" data-agent-action="escalate">Escalar</button>
-              </div>
+        <section class="workspace">
+          <article class="card">
+            <div class="card-head"><h2>Inbox</h2><span class="muted" id="inbox-count"></span></div>
+            <div class="inbox-list" id="threads"></div>
+          </article>
+
+          <article class="card">
+            <div id="conversation-head" class="conversation-head"></div>
+            <div class="thread" id="thread"></div>
+            <div class="composer">
+              <textarea id="operator-text" placeholder="Nota o intervencion interna del operador"></textarea>
+              <button class="dark" id="operator-send">Registrar</button>
             </div>
+          </article>
 
-            <div class="divider"></div>
-
-            <div class="block">
-              <h3>Control humano</h3>
-              <textarea id="control-reason" placeholder="Motivo auditable"></textarea>
-              <div class="actions">
-                <button class="dark" data-control-action="take_control">Tomar control</button>
-                <button data-control-action="return_to_agent">Devolver a MKT</button>
-                <button data-control-action="resolve">Resolver</button>
-              </div>
+          <aside class="card">
+            <div class="card-head"><h2>Operacion</h2></div>
+            <div class="side-scroll">
+              <section class="profile-card" id="profile"></section>
+              <section class="form-block">
+                <h3>Florencia-MKT</h3>
+                <textarea id="mkt-output" placeholder="Borrador, clasificacion o motivo de escalamiento"></textarea>
+                <select id="escalation-reason">
+                  <option value="ambiguous">Informacion ambigua</option>
+                  <option value="missing_info">Informacion ausente</option>
+                  <option value="sensitive">Caso sensible</option>
+                </select>
+                <div class="actions">
+                  <button data-agent-action="classify">Clasificar</button>
+                  <button class="primary" data-agent-action="draft">Borrador</button>
+                  <button class="danger" data-agent-action="escalate">Escalar</button>
+                </div>
+              </section>
+              <section class="form-block">
+                <h3>Control humano</h3>
+                <textarea id="control-reason" placeholder="Motivo auditable"></textarea>
+                <div class="actions">
+                  <button class="dark" data-control-action="take_control">Tomar control</button>
+                  <button data-control-action="return_to_agent">Devolver a MKT</button>
+                  <button data-control-action="resolve">Resolver</button>
+                </div>
+              </section>
+              <section class="form-block">
+                <h3>Bitacora</h3>
+                <div class="audit" id="audit"></div>
+              </section>
             </div>
-
-            <div class="divider"></div>
-
-            <div class="block">
-              <h3>Gate interno</h3>
-              <textarea id="gate-reason" placeholder="Motivo interno"></textarea>
-              <div class="actions">
-                <button class="primary" data-gate-decision="approve_internal">Aprobar</button>
-                <button data-gate-decision="reject_internal">Rechazar</button>
-                <button class="danger" data-gate-decision="escalate_esteban">Escalar a Esteban</button>
-              </div>
-              <p class="muted">Las acciones registran auditoria. En MVP1.2 no se envia ninguna respuesta externa.</p>
-            </div>
-          </div>
-        </aside>
+          </aside>
+        </section>
       </main>
     </div>
 
     <script>
       let state = null;
       let selectedThreadId = null;
-
       const threadsEl = document.getElementById("threads");
+      const threadEl = document.getElementById("thread");
       const headEl = document.getElementById("conversation-head");
-      const timelineEl = document.getElementById("timeline");
+      const profileEl = document.getElementById("profile");
+      const auditEl = document.getElementById("audit");
+      const metricsEl = document.getElementById("metrics");
       const statusEl = document.getElementById("runtime-status");
+      const searchEl = document.getElementById("search");
 
       document.getElementById("refresh").addEventListener("click", () => load());
       document.getElementById("seed").addEventListener("click", async () => {
@@ -497,192 +417,199 @@ export const dashboardHtml = String.raw`<!doctype html>
         await load();
       });
       document.getElementById("operator-send").addEventListener("click", recordOperatorIntervention);
-
+      searchEl.addEventListener("input", renderAll);
       for (const button of document.querySelectorAll("[data-agent-action]")) {
         button.addEventListener("click", () => runMktAgent(button.dataset.agentAction));
       }
-
       for (const button of document.querySelectorAll("[data-control-action]")) {
         button.addEventListener("click", () => changeConversationControl(button.dataset.controlAction));
-      }
-
-      for (const button of document.querySelectorAll("[data-gate-decision]")) {
-        button.addEventListener("click", () => decideGate(button.dataset.gateDecision));
       }
 
       async function load(preferredId) {
         const response = await fetch("/api/inbox");
         state = await response.json();
         statusEl.textContent = "Operativo";
-        const threads = getThreads();
+        const threads = filteredThreads();
         selectedThreadId = preferredId ?? selectedThreadId ?? threads[0]?.id ?? null;
+        renderAll();
+      }
+
+      function renderAll() {
+        const threads = filteredThreads();
+        if (!threads.some((thread) => thread.id === selectedThreadId)) {
+          selectedThreadId = threads[0]?.id ?? null;
+        }
+        renderMetrics();
         renderThreads(threads);
         renderConversation();
       }
 
       function getThreads() {
         const conversations = state.conversations.map((conversation) => {
+          const profile = profileById(conversation.participantProfileId);
           const messages = state.messages.filter((message) => message.conversationId === conversation.id);
-          const latest = messages.toSorted((a, b) => getTime(b).localeCompare(getTime(a)))[0];
+          const latest = messages.toSorted((a, b) => timeOf(b).localeCompare(timeOf(a)))[0];
           return {
             kind: "conversation",
             id: conversation.id,
-            title: conversation.participantExternalId,
+            title: profile?.displayName ?? conversation.participantExternalId,
             status: conversation.status,
-            owner: conversation.ownerActorId ?? "sin-dueno",
-            preview: latest?.text ?? "(sin mensajes)",
+            owner: conversation.ownerActorId ?? "florencia-mkt",
+            preview: latest?.text || "(sin texto visible)",
             at: latest?.createdAt ?? conversation.updatedAt,
             conversation,
+            profile,
             item: latest
           };
         });
-
-        const comments = state.comments.map((comment) => ({
-          kind: "comment",
-          id: comment.id,
-          title: "Comentario",
-          status: comment.status,
-          owner: comment.status === "requires_esteban" ? "esteban" : "florencia-mkt",
-          preview: comment.text,
-          at: comment.createdAt,
-          item: comment
-        }));
-
+        const comments = state.comments.map((comment) => {
+          const profile = profileByExternalId(comment.authorExternalId);
+          return {
+            kind: "comment",
+            id: comment.id,
+            title: profile?.displayName ?? "Comentario IG",
+            status: comment.status,
+            owner: comment.status === "requires_esteban" ? "esteban" : "florencia-mkt",
+            preview: comment.text || "(sin texto visible)",
+            at: comment.createdAt,
+            profile,
+            item: comment
+          };
+        });
         return [...conversations, ...comments].sort((a, b) => b.at.localeCompare(a.at));
       }
 
+      function filteredThreads() {
+        const q = searchEl.value.trim().toLowerCase();
+        if (!q) return getThreads();
+        return getThreads().filter((thread) =>
+          [thread.title, thread.preview, thread.profile?.username, thread.profile?.externalId]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(q))
+        );
+      }
+
+      function renderMetrics() {
+        const conversations = state.conversations.length;
+        const pending = state.conversations.filter((item) => item.status === "pending_human_approval").length;
+        const escalated = state.conversations.filter((item) => item.status === "requires_esteban" || item.escalationReason).length;
+        const prospects = state.participantProfiles?.length ?? 0;
+        const inbound = state.messages.filter((item) => item.direction === "inbound").length + state.comments.length;
+        metricsEl.innerHTML = [
+          metric("Conversaciones", conversations),
+          metric("Entradas IG", inbound),
+          metric("Prospectos", prospects),
+          metric("Pendientes", pending),
+          metric("Escaladas", escalated)
+        ].join("");
+      }
+
+      function metric(label, value) {
+        return '<div class="metric"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(value) + '</strong></div>';
+      }
+
       function renderThreads(threads) {
+        document.getElementById("inbox-count").textContent = threads.length + " items";
         if (threads.length === 0) {
           threadsEl.innerHTML = '<div class="empty">Sin conversaciones</div>';
           return;
         }
-
         threadsEl.innerHTML = "";
         for (const thread of threads) {
           const button = document.createElement("button");
           button.className = "thread-row" + (thread.id === selectedThreadId ? " active" : "");
           button.innerHTML =
-            '<div class="thread-top"><span class="thread-title">' +
-            escapeHtml(thread.title) +
-            '</span>' +
-            badge(thread.status, statusTone(thread.status)) +
-            "</div>" +
-            '<div class="thread-preview">' +
-            escapeHtml(thread.preview) +
-            "</div>" +
-            '<div class="badges" style="margin-top:9px">' +
-            badge(thread.kind) +
-            badge(thread.owner, thread.owner === "esteban" ? "danger" : "blue") +
-            "</div>";
-          button.addEventListener("click", () => {
-            selectedThreadId = thread.id;
-            renderThreads(threads);
-            renderConversation();
-          });
+            '<div class="person-line"><div class="avatar">' + initials(thread.title) + '</div><div class="person-main"><strong>' +
+            escapeHtml(thread.title) + '</strong><span class="muted">' +
+            escapeHtml(thread.profile?.username ? "instagram.com/" + thread.profile.username : thread.profile?.externalId ?? thread.kind) +
+            '</span></div></div><div class="preview">' +
+            escapeHtml(thread.preview) + '</div><div class="badges">' +
+            badge(thread.status, statusTone(thread.status)) + badge(thread.owner, thread.owner === "esteban" ? "danger" : "blue") +
+            '</div>';
+          button.addEventListener("click", () => { selectedThreadId = thread.id; renderAll(); });
           threadsEl.appendChild(button);
         }
       }
 
       function renderConversation() {
-        const thread = getThreads().find((candidate) => candidate.id === selectedThreadId);
+        const thread = getThreads().find((item) => item.id === selectedThreadId);
         if (!thread) {
-          headEl.innerHTML = '<div class="empty">Cargá una demo o esperá eventos Meta</div>';
-          timelineEl.innerHTML = "";
+          headEl.innerHTML = '<div class="empty">Sin seleccion</div>';
+          threadEl.innerHTML = "";
+          profileEl.innerHTML = "";
+          auditEl.innerHTML = "";
           return;
         }
-
-        const owner = thread.conversation?.ownerActorId ?? thread.owner;
+        const profile = thread.profile;
         headEl.innerHTML =
-          '<div class="conversation-title"><h1>' +
-          escapeHtml(thread.title) +
-          '</h1><div class="badges">' +
-          badge(thread.status, statusTone(thread.status)) +
-          badge("dueno: " + owner, owner === "esteban" ? "danger" : "blue") +
-          (thread.conversation?.escalationReason ? badge(thread.conversation.escalationReason, "warn") : "") +
-          "</div></div>" +
-          '<div class="muted">Ultima actividad: ' +
-          escapeHtml(thread.at) +
-          "</div>";
-
-        timelineEl.innerHTML = timeline(thread);
+          '<div class="conversation-title"><div class="person-line"><div class="avatar">' + initials(thread.title) +
+          '</div><div><h2>' + escapeHtml(thread.title) + '</h2><div class="muted">' +
+          escapeHtml(profile?.profileUrl ?? profile?.externalId ?? "Instagram") + '</div></div></div><div class="badges">' +
+          badge(thread.status, statusTone(thread.status)) + badge("dueno: " + thread.owner, thread.owner === "esteban" ? "danger" : "blue") +
+          (thread.conversation?.escalationReason ? badge(thread.conversation.escalationReason, "warn") : "") + '</div></div>';
+        threadEl.innerHTML = conversationMessages(thread);
+        profileEl.innerHTML = renderProfile(thread);
+        auditEl.innerHTML = renderAudit(thread);
       }
 
-      function timeline(thread) {
+      function conversationMessages(thread) {
         const entries = [];
         if (thread.kind === "conversation") {
           for (const message of state.messages.filter((item) => item.conversationId === thread.id)) {
             entries.push({
               at: message.createdAt,
-              type: message.direction === "internal" ? "internal" : "inbound",
-              title: message.direction === "internal" ? message.authorExternalId : "Cliente / prospecto",
-              text: message.text
+              internal: message.direction === "internal",
+              who: message.direction === "internal" ? message.authorExternalId : (thread.profile?.displayName ?? "Prospecto"),
+              text: message.text || "(evento sin texto: posible adjunto/reaccion)"
             });
           }
-          for (const action of state.agentActions.filter((item) => item.inboxItemId.startsWith("message:"))) {
-            const message = state.messages.find((candidate) => candidate.id === action.inboxItemId);
-            if (message?.conversationId === thread.id) {
-              entries.push({ at: action.createdAt, type: "agent", title: "Florencia-MKT · " + action.action, text: action.output });
-            }
-          }
-          for (const audit of state.auditLog.filter((entry) => entry.entityId === thread.id)) {
-            entries.push({ at: audit.createdAt, type: "audit", title: audit.action, text: audit.metadata?.reason ?? audit.metadata?.detail ?? audit.actorId });
-          }
         } else {
-          entries.push({ at: thread.item.createdAt, type: "inbound", title: "Comentario", text: thread.item.text });
-          for (const action of state.agentActions.filter((item) => item.inboxItemId === thread.id)) {
-            entries.push({ at: action.createdAt, type: "agent", title: "Florencia-MKT · " + action.action, text: action.output });
-          }
-          for (const audit of state.auditLog.filter((entry) => entry.entityId === thread.id)) {
-            entries.push({ at: audit.createdAt, type: "audit", title: audit.action, text: audit.metadata?.reason ?? audit.actorId });
-          }
+          entries.push({ at: thread.item.createdAt, internal: false, who: thread.title, text: thread.item.text || "(comentario sin texto)" });
         }
+        if (entries.length === 0) return '<div class="empty">Sin mensajes</div>';
+        return entries.sort((a, b) => a.at.localeCompare(b.at)).map((entry) =>
+          '<article class="message ' + (entry.internal ? "internal" : "") + '"><strong>' +
+          escapeHtml(entry.who) + '</strong><p>' + escapeHtml(entry.text) + '</p><small>' + escapeHtml(entry.at) + '</small></article>'
+        ).join("");
+      }
 
-        if (entries.length === 0) return '<div class="empty">Sin historial</div>';
-        return entries
-          .sort((a, b) => a.at.localeCompare(b.at))
-          .map((entry) => {
-            return (
-              '<article class="bubble ' +
-              entry.type +
-              '"><strong>' +
-              escapeHtml(entry.title) +
-              "</strong><p>" +
-              escapeHtml(entry.text) +
-              "</p><small>" +
-              escapeHtml(entry.at) +
-              "</small></article>"
-            );
-          })
-          .join("");
+      function renderProfile(thread) {
+        const profile = thread.profile;
+        return '<div class="person-line"><div class="avatar">' + initials(thread.title) + '</div><div class="person-main"><strong>' +
+          escapeHtml(thread.title) + '</strong><span class="muted">' + escapeHtml(profile?.username ? "@" + profile.username : profile?.externalId ?? "sin perfil enriquecido") +
+          '</span></div></div><div class="badges">' + badge(profile?.kind ?? "unknown") + badge(thread.kind) + '</div>' +
+          '<p class="muted">Remitente visible como perfil operativo. Si Meta entrega username, se muestra link directo; si no, se conserva el ID IG-scoped para trazabilidad.</p>';
+      }
+
+      function renderAudit(thread) {
+        const targetIds = new Set([thread.id, thread.item?.id]);
+        if (thread.kind === "conversation") {
+          for (const message of state.messages.filter((item) => item.conversationId === thread.id)) targetIds.add(message.id);
+        }
+        const rows = [
+          ...state.agentActions.filter((item) => targetIds.has(item.inboxItemId)).map((item) => ({ at: item.createdAt, title: "MKT · " + item.action, text: item.output })),
+          ...state.approvals.filter((item) => targetIds.has(item.inboxItemId)).map((item) => ({ at: item.decidedAt, title: item.state, text: item.reason ?? item.decidedBy })),
+          ...state.auditLog.filter((item) => targetIds.has(item.entityId)).map((item) => ({ at: item.createdAt, title: item.action, text: item.metadata?.reason ?? item.metadata?.detail ?? item.actorId }))
+        ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 12);
+        if (rows.length === 0) return '<div class="muted">Sin actividad interna.</div>';
+        return rows.map((row) => '<div class="audit-row"><strong>' + escapeHtml(row.title) + '</strong><div class="muted">' + escapeHtml(row.text ?? "") + '</div><div class="muted">' + escapeHtml(row.at ?? "") + '</div></div>').join("");
       }
 
       async function recordOperatorIntervention() {
-        const thread = currentConversationThread();
-        const textarea = document.getElementById("operator-text");
-        const text = textarea.value.trim();
-        if (!thread || !text) {
-          textarea.focus();
-          return;
-        }
-
-        await postJson("/api/operator-intervention", {
-          conversationId: thread.id,
-          actorId: "operador-humano",
-          text
-        });
-        textarea.value = "";
+        const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
+        const textEl = document.getElementById("operator-text");
+        const text = textEl.value.trim();
+        if (!thread || !text) { textEl.focus(); return; }
+        await postJson("/api/operator-intervention", { conversationId: thread.id, actorId: "operador-humano", text });
+        textEl.value = "";
         await load(thread.id);
       }
 
       async function runMktAgent(action) {
-        const target = currentInboxTarget();
+        const target = currentTarget();
         const outputEl = document.getElementById("mkt-output");
         const output = outputEl.value.trim();
-        if (!target || !output) {
-          outputEl.focus();
-          return;
-        }
-
+        if (!target || !output) { outputEl.focus(); return; }
         await postJson("/api/mkt-agent", {
           conversationId: target.conversationId,
           inboxItemType: target.inboxItemType,
@@ -696,14 +623,10 @@ export const dashboardHtml = String.raw`<!doctype html>
       }
 
       async function changeConversationControl(action) {
-        const thread = currentConversationThread();
+        const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
         const reasonEl = document.getElementById("control-reason");
         const reason = reasonEl.value.trim();
-        if (!thread || !reason) {
-          reasonEl.focus();
-          return;
-        }
-
+        if (!thread || !reason) { reasonEl.focus(); return; }
         await postJson("/api/conversation-control", {
           conversationId: thread.id,
           actorId: action === "return_to_agent" ? "florencia-mkt" : "operador-humano",
@@ -714,63 +637,19 @@ export const dashboardHtml = String.raw`<!doctype html>
         await load(thread.id);
       }
 
-      async function decideGate(decision) {
-        const target = currentInboxTarget();
-        const reasonEl = document.getElementById("gate-reason");
-        const reason = reasonEl.value.trim();
-        if (!target || !reason) {
-          reasonEl.focus();
-          return;
-        }
-
-        await postJson("/api/human-gate", {
-          inboxItemType: target.inboxItemType,
-          inboxItemId: target.inboxItemId,
-          decision,
-          reason,
-          decidedBy: decision === "escalate_esteban" ? "florencia-mkt" : "esteban",
-          sensitivity: inferSensitivity(target.text)
-        });
-        reasonEl.value = "";
-        await load(target.threadId);
-      }
-
-      function currentConversationThread() {
-        return getThreads().find((thread) => thread.id === selectedThreadId && thread.kind === "conversation");
-      }
-
-      function currentInboxTarget() {
-        const thread = getThreads().find((candidate) => candidate.id === selectedThreadId);
+      function currentTarget() {
+        const thread = getThreads().find((item) => item.id === selectedThreadId);
         if (!thread) return null;
         if (thread.kind === "comment") {
-          return {
-            threadId: thread.id,
-            conversationId: state.conversations[0]?.id ?? "",
-            inboxItemType: "comment",
-            inboxItemId: thread.item.id,
-            text: thread.item.text
-          };
+          return { threadId: thread.id, conversationId: state.conversations[0]?.id ?? "", inboxItemType: "comment", inboxItemId: thread.item.id };
         }
-        const latestInbound = state.messages
-          .filter((message) => message.conversationId === thread.id && message.direction === "inbound")
-          .toSorted((a, b) => getTime(b).localeCompare(getTime(a)))[0];
-        return latestInbound
-          ? {
-              threadId: thread.id,
-              conversationId: thread.id,
-              inboxItemType: "message",
-              inboxItemId: latestInbound.id,
-              text: latestInbound.text
-            }
-          : null;
+        const latest = state.messages.filter((item) => item.conversationId === thread.id && item.direction === "inbound")
+          .toSorted((a, b) => timeOf(b).localeCompare(timeOf(a)))[0];
+        return latest ? { threadId: thread.id, conversationId: thread.id, inboxItemType: "message", inboxItemId: latest.id } : null;
       }
 
       async function postJson(path, body) {
-        const response = await fetch(path, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body)
-        });
+        const response = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
           throw new Error(payload.message || payload.error || "request failed");
@@ -778,34 +657,23 @@ export const dashboardHtml = String.raw`<!doctype html>
         return response.json();
       }
 
-      function badge(text, tone = "") {
-        return '<span class="badge ' + tone + '">' + escapeHtml(text) + "</span>";
-      }
-
+      function profileById(id) { return state.participantProfiles?.find((item) => item.id === id); }
+      function profileByExternalId(id) { return state.participantProfiles?.find((item) => item.externalId === id); }
+      function timeOf(item) { return item.createdAt ?? item.receivedAt ?? item.updatedAt ?? ""; }
+      function initials(value) { return String(value || "?").replace(/^@/, "").split(/[^a-z0-9]+/i).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?"; }
       function statusTone(status) {
         if (status === "requires_esteban" || status === "rejected_internal") return "danger";
         if (status === "pending_human_approval" || status === "pending_review") return "warn";
         if (status === "approved_internal" || status === "archived") return "ok";
         return "blue";
       }
-
-      function inferSensitivity(text) {
-        return /legal|abogado|denuncia|reclamo|crisis|esteban/i.test(text) ? "sensitive" : "standard";
-      }
-
-      function getTime(item) {
-        return item.createdAt ?? item.receivedAt ?? item.updatedAt ?? "";
-      }
-
+      function badge(text, tone = "") { return '<span class="badge ' + tone + '">' + escapeHtml(text) + '</span>'; }
       function escapeHtml(value) {
-        return String(value ?? "").replace(/[&<>"']/g, (char) => {
-          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
-        });
+        return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
       }
-
       load().catch((error) => {
         statusEl.textContent = "Error";
-        headEl.innerHTML = '<div class="empty">' + escapeHtml(error.message) + "</div>";
+        threadEl.innerHTML = '<div class="empty">' + escapeHtml(error.message) + '</div>';
       });
     </script>
   </body>

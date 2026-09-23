@@ -17,6 +17,7 @@ export function ingestMetaWebhook(
 
   for (const event of events) {
     store.upsertAccount(event.account);
+    store.upsertParticipantProfile(event.participantProfile);
 
     if (event.type === "message") {
       store.upsertConversation(event.conversation);
@@ -47,4 +48,3 @@ export function ingestMetaWebhook(
 
   return { importedMessages, importedComments };
 }
-

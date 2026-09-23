@@ -94,3 +94,19 @@ Manual browser smoke:
 - `Control humano` can take control, return to MKT, and resolve with an audit reason.
 - `Gate interno` can approve, reject, or escalate internally.
 - Every MVP1.2 path keeps outbound blocked; no Meta Graph API reply/publish call is expected.
+
+## LXC112 Bridge
+
+LXC112 remains the public Meta webhook edge. Its responsibility is ingest-only:
+
+- Validate Meta signature.
+- Persist raw event JSONL for audit/replay.
+- Forward the raw Meta envelope to LXC121 `/api/meta-webhook`.
+- Never send an Instagram/Facebook reply from the webhook edge.
+
+Expected internal target:
+
+```bash
+SCC_INGEST_URL=http://192.168.0.211:3121/api/meta-webhook
+META_AUTO_REPLY_ENABLED=false
+```

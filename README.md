@@ -23,12 +23,14 @@ Private MVP for eBiz social operations.
 
 - Repo: public GitHub repository with native secret scanning and branch protection.
 - Product runtime: LXC121 deployed for internal navigation.
-- MVP1.2: Social Inbox, conversation history, Florencia-MKT agent actions, human operator intervention, escalation for ambiguous/missing/sensitive cases, audit, internal approvals, no outbound.
+- MVP1.3: Real Meta ingest bridge, participant profiles, Factory-style Social Inbox, conversation history, Florencia-MKT agent actions, human operator intervention, escalation for ambiguous/missing/sensitive cases, audit, internal approvals, no outbound.
 - GitHub controls: see `docs/github-controls.md`.
 
 ## MVP1.2 Operating Flow
 
 - Incoming Meta events become inbox conversations or comments.
+- Incoming Meta events from LXC112 are forwarded into LXC121 instead of staying only in webhook logs.
+- Prospect/client identity is modeled as a participant profile with Instagram username/profile URL when Meta provides it, and with an IG-scoped external id otherwise.
 - Florencia-MKT can classify, draft, and escalate with an auditable reason.
 - A human operator can take control of a conversation, add an internal intervention, return it to MKT, or resolve it.
 - Ambiguous, missing, or sensitive information is escalated instead of answered automatically.
