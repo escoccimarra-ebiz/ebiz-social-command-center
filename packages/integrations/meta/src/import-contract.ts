@@ -53,7 +53,7 @@ export function importMetaWebhook(envelope: MetaWebhookEnvelope): ImportedMetaEv
     const account = makeAccount(envelope.object, entry.id, entry.time);
 
     for (const messageEvent of entry.messaging ?? []) {
-      if (messageEvent.message?.mid === undefined) {
+      if (messageEvent.message?.mid === undefined || messageEvent.message.is_echo === true) {
         continue;
       }
 
@@ -113,7 +113,7 @@ function importMessage(
       conversationId: conversation.id,
       externalId: messageEvent.message?.mid ?? "",
       direction: "inbound",
-      text: messageEvent.message?.text ?? "",
+      text: summarizeMessageEvent(messageEvent),
       authorExternalId: messageEvent.sender.id,
       status: "received",
       receivedAt,
@@ -165,6 +165,27 @@ function importComment(
       createdAt: receivedAt
     }
   };
+}
+
+function summarizeMessageEvent(messageEvent: MetaMessagingEvent): string {
+  const text = messageEvent.message?.text?.trim();
+  if (text !== undefined && text.length > 0) {
+    return text;
+  }
+
+  const story = messageEvent.message?.reply_to?.story;
+  if (story !== undefined) {
+    const sticker = story.link_sticker_url === undefined ? "" : ` Link: ${story.link_sticker_url}`;
+    return `[Respuesta a historia de Instagram]${sticker}`;
+  }
+
+  const attachments = messageEvent.message?.attachments ?? [];
+  if (attachments.length > 0) {
+    const attachmentTypes = attachments.map((attachment) => attachment.type).join(", ");
+    return `[Adjunto de Instagram: ${attachmentTypes}]`;
+  }
+
+  return "[Evento de Instagram sin texto visible]";
 }
 
 function makeParticipantProfile(

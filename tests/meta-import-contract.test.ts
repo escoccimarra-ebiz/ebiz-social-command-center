@@ -24,6 +24,30 @@ const fixture: MetaWebhookEnvelope = {
             mid: "mid-1",
             text: "Hola, quiero info del cowork"
           }
+        },
+        {
+          sender: { id: "17841400000000000" },
+          recipient: { id: "user-1" },
+          timestamp: 1790159001500,
+          message: {
+            mid: "mid-echo-ignored",
+            text: "Auto respuesta vieja que no debe ensuciar inbox",
+            is_echo: true
+          }
+        },
+        {
+          sender: { id: "user-1" },
+          recipient: { id: "17841400000000000" },
+          timestamp: 1790159001800,
+          message: {
+            mid: "mid-story",
+            reply_to: {
+              story: {
+                id: "story-1",
+                link_sticker_url: "https://ebiz.com.ar/coworking-rosario/reservar"
+              }
+            }
+          }
         }
       ],
       changes: [
@@ -46,9 +70,10 @@ describe("Meta import contract", () => {
   it("normalizes messages and comments without outbound side effects", () => {
     const events = importMetaWebhook(fixture);
 
-    assert.equal(events.length, 2);
+    assert.equal(events.length, 3);
     assert.equal(events[0]?.type, "message");
-    assert.equal(events[1]?.type, "comment");
+    assert.equal(events[1]?.type, "message");
+    assert.equal(events[2]?.type, "comment");
   });
 
   it("persists imported events into the Social Inbox model", () => {
@@ -57,16 +82,20 @@ describe("Meta import contract", () => {
     const snapshot = store.snapshot();
 
     assert.deepEqual(result, {
-      importedMessages: 1,
+      importedMessages: 2,
       importedComments: 1
     });
     assert.equal(snapshot.socialAccounts.length, 1);
     assert.equal(snapshot.participantProfiles.length, 2);
     assert.equal(snapshot.conversations.length, 1);
-    assert.equal(snapshot.messages.length, 1);
+    assert.equal(snapshot.messages.length, 2);
     assert.equal(snapshot.comments.length, 1);
-    assert.equal(snapshot.auditLog.length, 2);
+    assert.equal(snapshot.auditLog.length, 3);
     assert.equal(snapshot.messages[0]?.text, "Hola, quiero info del cowork");
+    assert.equal(
+      snapshot.messages[1]?.text,
+      "[Respuesta a historia de Instagram] Link: https://ebiz.com.ar/coworking-rosario/reservar"
+    );
     assert.equal(snapshot.comments[0]?.text, "Me interesa");
     assert.equal(snapshot.conversations[0]?.participantProfileId, "profile:meta:instagram:17841400000000000:user-1");
     assert.equal(snapshot.participantProfiles[0]?.displayName, "Instagram user-1");
