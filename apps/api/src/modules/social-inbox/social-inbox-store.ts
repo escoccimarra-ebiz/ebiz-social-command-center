@@ -4,6 +4,7 @@ import type {
   AuditLogEntry,
   Assignment,
   Conversation,
+  InboxItemType,
   SocialAccount,
   SocialComment,
   SocialInboxState,
@@ -60,22 +61,44 @@ export class SocialInboxStore {
     return entry;
   }
 
+  addTask(task: Task): Task {
+    this.state.tasks.push(task);
+    return task;
+  }
+
+  addAssignment(assignment: Assignment): Assignment {
+    this.state.assignments.push(assignment);
+    return assignment;
+  }
+
+  addApproval(approval: Approval): Approval {
+    this.state.approvals.push(approval);
+    return approval;
+  }
+
+  addAgentAction(action: AgentAction): AgentAction {
+    this.state.agentActions.push(action);
+    return action;
+  }
+
   approveInternal(params: {
-    inboxItemType: "message" | "comment";
+    inboxItemType: InboxItemType;
     inboxItemId: string;
     approvedBy: string;
     approvedAt: string;
+    sensitivity?: "standard" | "sensitive";
   }): Approval {
     const approval: Approval = {
       id: stableId("approval", params.inboxItemType, params.inboxItemId, params.approvedAt),
       inboxItemType: params.inboxItemType,
       inboxItemId: params.inboxItemId,
       state: "approved_internal",
-      approvedBy: params.approvedBy,
-      approvedAt: params.approvedAt
+      decidedBy: params.approvedBy,
+      decidedAt: params.approvedAt,
+      sensitivity: params.sensitivity ?? "standard"
     };
 
-    this.state.approvals.push(approval);
+    this.addApproval(approval);
     this.addAuditLog({
       id: stableId("audit", approval.id),
       actorId: params.approvedBy,
@@ -107,4 +130,3 @@ export function stableId(...parts: string[]): string {
     .replace(/-+/g, "-")
     .replace(/(^-|-$)/g, "");
 }
-
