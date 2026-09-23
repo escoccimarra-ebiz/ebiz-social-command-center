@@ -11,6 +11,8 @@
 - Human gate tests for standard approval, sensitive Esteban-only approval, and rejected unaudited decisions.
 - Meta import contract tests for messages and comments.
 - HMAC verification tests with test-only secrets.
+- File-backed persistence save/reload test.
+- Runtime smoke test for `/health`, `/api/inbox`, and dashboard rendering before internal deploy.
 
 ## Required Before Production
 
