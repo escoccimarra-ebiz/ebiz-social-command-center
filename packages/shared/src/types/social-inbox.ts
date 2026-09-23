@@ -11,8 +11,9 @@ export type InboxItemStatus =
   | "rejected_internal"
   | "archived";
 export type InboxItemType = "message" | "comment";
-export type HumanGateActor = "florencia-mkt" | "esteban" | "system";
+export type HumanGateActor = "florencia-mkt" | "esteban" | "operador-humano" | "system";
 export type SensitivityLevel = "standard" | "sensitive";
+export type EscalationReason = "ambiguous" | "missing_info" | "sensitive";
 export type ApprovalState =
   | "pending_human_approval"
   | "requires_esteban"
@@ -34,6 +35,10 @@ export interface Conversation {
   externalThreadId: string;
   participantExternalId: string;
   status: InboxItemStatus;
+  ownerActorId?: HumanGateActor;
+  lastHumanInterventionAt?: string;
+  lastAgentActionAt?: string;
+  escalationReason?: EscalationReason;
   createdAt: string;
   updatedAt: string;
 }

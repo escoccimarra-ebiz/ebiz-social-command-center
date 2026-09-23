@@ -22,6 +22,27 @@ Private MVP for eBiz social operations.
 ## Status
 
 - Repo: public GitHub repository with native secret scanning and branch protection.
-- Product runtime: LXC121 provisioned; deploy pending.
-- MVP1: Social Inbox, Meta import contract, Florencia-MKT human gate, audit, internal approvals, no outbound.
+- Product runtime: LXC121 deployed for internal navigation.
+- MVP1.2: Social Inbox, conversation history, Florencia-MKT agent actions, human operator intervention, escalation for ambiguous/missing/sensitive cases, audit, internal approvals, no outbound.
 - GitHub controls: see `docs/github-controls.md`.
+
+## MVP1.2 Operating Flow
+
+- Incoming Meta events become inbox conversations or comments.
+- Florencia-MKT can classify, draft, and escalate with an auditable reason.
+- A human operator can take control of a conversation, add an internal intervention, return it to MKT, or resolve it.
+- Ambiguous, missing, or sensitive information is escalated instead of answered automatically.
+- All actions remain internal during MVP1.2: no external send, publish, reply, auto-reply, or outbound Graph API call is enabled.
+
+## Brand Application
+
+The internal dashboard uses the eBiz identity v1.2 tokens:
+
+- eBiz Blue `#0077FF`
+- eBiz Charcoal `#202733`
+- eBiz White `#FFFFFF`
+- eBiz Ink `#1A1A1A`
+- eBiz Neutral `#6B7280`
+- Montserrat-first typography fallback
+
+Do not reintroduce the old Arizonia/gold local kit without explicit approval.

@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   classifyAsFlorencia,
+  decideConversationControl,
   decideHumanGate,
-  draftAsFlorencia
+  draftAsFlorencia,
+  escalateAsFlorencia
 } from "../apps/api/src/modules/social-inbox/human-gate-service.js";
 import { SocialInboxStore } from "../apps/api/src/modules/social-inbox/social-inbox-store.js";
 
@@ -102,4 +104,90 @@ describe("Florencia-MKT human gate flow", () => {
       new Error("Human gate decisions require an audit reason")
     );
   });
+
+  it("records human operator intervention inside the conversation history", () => {
+    const store = seededConversationStore();
+
+    decideConversationControl(store, {
+      conversationId: "conversation-1",
+      decidedAt: "2026-09-23T13:11:00.000Z",
+      actorId: "operador-humano",
+      action: "take_control",
+      reason: "MKT necesita validar informacion comercial antes de responder."
+    });
+    const message = store.addInternalConversationMessage({
+      conversationId: "conversation-1",
+      accountId: "account-1",
+      actorId: "operador-humano",
+      text: "Valido disponibilidad y precio antes de autorizar respuesta.",
+      createdAt: "2026-09-23T13:12:00.000Z"
+    });
+
+    const snapshot = store.snapshot();
+    const conversation = snapshot.conversations[0];
+
+    assert.equal(message.direction, "internal");
+    assert.equal(message.authorExternalId, "operador-humano");
+    assert.equal(conversation?.ownerActorId, "operador-humano");
+    assert.equal(conversation?.lastHumanInterventionAt, "2026-09-23T13:12:00.000Z");
+    assert.equal(snapshot.auditLog.at(-1)?.metadata?.externalResponseBlocked, true);
+  });
+
+  it("lets Florencia escalate ambiguous, missing, or sensitive cases to a human", () => {
+    const store = seededConversationStore();
+
+    const escalation = escalateAsFlorencia(store, {
+      conversationId: "conversation-1",
+      inboxItemType: "message",
+      inboxItemId: "message-1",
+      createdAt: "2026-09-23T13:13:00.000Z",
+      reason: "missing_info",
+      detail: "Falta precio vigente del day pass."
+    });
+
+    const snapshot = store.snapshot();
+    const conversation = snapshot.conversations[0];
+
+    assert.equal(escalation.action, "escalate");
+    assert.equal(conversation?.status, "pending_human_approval");
+    assert.equal(conversation?.ownerActorId, "operador-humano");
+    assert.equal(conversation?.escalationReason, "missing_info");
+    assert.match(escalation.output, /Falta precio vigente/);
+  });
 });
+
+function seededConversationStore(): SocialInboxStore {
+  const store = new SocialInboxStore();
+  store.upsertAccount({
+    id: "account-1",
+    provider: "meta",
+    channel: "instagram",
+    externalId: "ig-ebiz",
+    displayName: "Instagram eBiz",
+    createdAt: "2026-09-23T13:00:00.000Z"
+  });
+  store.upsertConversation({
+    id: "conversation-1",
+    accountId: "account-1",
+    externalThreadId: "thread-1",
+    participantExternalId: "lead-rosario",
+    status: "pending_review",
+    ownerActorId: "florencia-mkt",
+    createdAt: "2026-09-23T13:00:00.000Z",
+    updatedAt: "2026-09-23T13:00:00.000Z"
+  });
+  store.upsertMessage({
+    id: "message-1",
+    accountId: "account-1",
+    conversationId: "conversation-1",
+    externalId: "external-message-1",
+    direction: "inbound",
+    text: "Cuanto sale el day pass?",
+    authorExternalId: "lead-rosario",
+    status: "pending_review",
+    receivedAt: "2026-09-23T13:00:00.000Z",
+    createdAt: "2026-09-23T13:00:00.000Z"
+  });
+
+  return store;
+}
