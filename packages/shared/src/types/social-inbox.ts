@@ -5,8 +5,19 @@ export type InboxItemStatus =
   | "received"
   | "normalized"
   | "pending_review"
+  | "pending_human_approval"
+  | "requires_esteban"
   | "approved_internal"
+  | "rejected_internal"
   | "archived";
+export type InboxItemType = "message" | "comment";
+export type HumanGateActor = "florencia-mkt" | "esteban" | "system";
+export type SensitivityLevel = "standard" | "sensitive";
+export type ApprovalState =
+  | "pending_human_approval"
+  | "requires_esteban"
+  | "approved_internal"
+  | "rejected_internal";
 
 export interface SocialAccount {
   id: string;
@@ -55,7 +66,7 @@ export interface SocialComment {
 
 export interface Task {
   id: string;
-  inboxItemType: "message" | "comment";
+  inboxItemType: InboxItemType;
   inboxItemId: string;
   title: string;
   status: "open" | "done";
@@ -73,11 +84,15 @@ export interface Assignment {
 
 export interface Approval {
   id: string;
-  inboxItemType: "message" | "comment";
+  inboxItemType: InboxItemType;
   inboxItemId: string;
-  state: "approved_internal";
-  approvedBy: string;
-  approvedAt: string;
+  state: ApprovalState;
+  requestedBy?: string;
+  requestedAt?: string;
+  decidedBy?: string;
+  decidedAt?: string;
+  reason?: string;
+  sensitivity: SensitivityLevel;
 }
 
 export interface AuditLogEntry {
@@ -94,7 +109,7 @@ export interface AgentAction {
   id: string;
   agentId: "florencia-mkt";
   action: "classify" | "draft" | "summarize" | "escalate";
-  inboxItemType: "message" | "comment";
+  inboxItemType: InboxItemType;
   inboxItemId: string;
   status: "suggested" | "accepted" | "rejected";
   createdAt: string;
@@ -112,4 +127,3 @@ export interface SocialInboxState {
   auditLog: AuditLogEntry[];
   agentActions: AgentAction[];
 }
-
