@@ -24,4 +24,4 @@ Private MVP for eBiz social operations.
 - Repo: private GitHub repository.
 - Product runtime: pending LXC121 provisioning.
 - MVP1: Social Inbox, audit, internal approvals, no outbound.
-
+- GitHub controls: see `docs/github-controls.md`.

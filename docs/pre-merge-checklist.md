@@ -10,5 +10,6 @@
 - [ ] `approve` only changes internal state.
 - [ ] Negative outbound tests pass.
 - [ ] Lint, test, and build pass.
+- [ ] Secret Scan workflow passes.
 - [ ] PR references its AO task.
-
+- [ ] Branch protection limitation reviewed if merging to `main`.
