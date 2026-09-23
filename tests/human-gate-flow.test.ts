@@ -169,6 +169,7 @@ function seededConversationStore(): SocialInboxStore {
   store.upsertConversation({
     id: "conversation-1",
     accountId: "account-1",
+    participantProfileId: "profile-1",
     externalThreadId: "thread-1",
     participantExternalId: "lead-rosario",
     status: "pending_review",

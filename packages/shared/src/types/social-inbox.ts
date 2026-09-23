@@ -32,6 +32,7 @@ export interface SocialAccount {
 export interface Conversation {
   id: string;
   accountId: string;
+  participantProfileId: string;
   externalThreadId: string;
   participantExternalId: string;
   status: InboxItemStatus;
@@ -41,6 +42,20 @@ export interface Conversation {
   escalationReason?: EscalationReason;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ParticipantProfile {
+  id: string;
+  provider: SocialProvider;
+  channel: SocialChannel;
+  externalId: string;
+  displayName: string;
+  username?: string;
+  profileUrl?: string;
+  avatarUrl?: string;
+  kind: "prospect" | "client" | "unknown";
+  lastSeenAt: string;
+  createdAt: string;
 }
 
 export interface SocialMessage {
@@ -123,6 +138,7 @@ export interface AgentAction {
 
 export interface SocialInboxState {
   socialAccounts: SocialAccount[];
+  participantProfiles: ParticipantProfile[];
   conversations: Conversation[];
   messages: SocialMessage[];
   comments: SocialComment[];

@@ -14,9 +14,26 @@ export interface MetaMessagingEvent {
   sender: { id: string };
   recipient: { id: string };
   timestamp: number;
+  read?: {
+    mid?: string;
+  };
   message?: {
     mid: string;
     text?: string;
+    is_echo?: boolean;
+    attachments?: {
+      type: string;
+      payload?: {
+        url?: string;
+      };
+    }[];
+    reply_to?: {
+      story?: {
+        id?: string;
+        url?: string;
+        link_sticker_url?: string;
+      };
+    };
   };
 }
 
@@ -32,4 +49,3 @@ export interface MetaChangeEvent {
     created_time?: number;
   };
 }
-

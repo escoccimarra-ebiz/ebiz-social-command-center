@@ -6,6 +6,7 @@ import type {
   Conversation,
   HumanGateActor,
   InboxItemType,
+  ParticipantProfile,
   SocialAccount,
   SocialComment,
   SocialInboxState,
@@ -15,6 +16,7 @@ import type {
 
 type Entity =
   | SocialAccount
+  | ParticipantProfile
   | Conversation
   | SocialMessage
   | SocialComment
@@ -37,6 +39,7 @@ export class SocialInboxStore {
 
   replaceState(nextState: SocialInboxState): void {
     this.state.socialAccounts = structuredClone(nextState.socialAccounts);
+    this.state.participantProfiles = structuredClone(nextState.participantProfiles ?? []);
     this.state.conversations = structuredClone(nextState.conversations);
     this.state.messages = structuredClone(nextState.messages);
     this.state.comments = structuredClone(nextState.comments);
@@ -53,6 +56,10 @@ export class SocialInboxStore {
 
   upsertAccount(account: SocialAccount): SocialAccount {
     return this.upsert(this.state.socialAccounts, account);
+  }
+
+  upsertParticipantProfile(profile: ParticipantProfile): ParticipantProfile {
+    return this.upsert(this.state.participantProfiles, profile);
   }
 
   upsertConversation(conversation: Conversation): Conversation {
@@ -207,6 +214,7 @@ export class SocialInboxStore {
 export function createEmptySocialInboxState(): SocialInboxState {
   return {
     socialAccounts: [],
+    participantProfiles: [],
     conversations: [],
     messages: [],
     comments: [],

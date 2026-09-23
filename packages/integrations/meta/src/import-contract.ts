@@ -6,6 +6,7 @@ import type {
 } from "../../../shared/src/types/meta-webhook.js";
 import type {
   Conversation,
+  ParticipantProfile,
   SocialAccount,
   SocialComment,
   SocialMessage
@@ -15,13 +16,15 @@ export type ImportedMetaEvent =
   | {
       type: "message";
       account: SocialAccount;
+      participantProfile: ParticipantProfile;
       conversation: Conversation;
       message: SocialMessage;
     }
   | {
       type: "comment";
       account: SocialAccount;
-      comment: SocialComment;
+    comment: SocialComment;
+      participantProfile: ParticipantProfile;
     };
 
 export function verifyMetaSignature(params: {
@@ -50,7 +53,7 @@ export function importMetaWebhook(envelope: MetaWebhookEnvelope): ImportedMetaEv
     const account = makeAccount(envelope.object, entry.id, entry.time);
 
     for (const messageEvent of entry.messaging ?? []) {
-      if (messageEvent.message?.mid === undefined) {
+      if (messageEvent.message?.mid === undefined || messageEvent.message.is_echo === true) {
         continue;
       }
 
@@ -91,6 +94,7 @@ function importMessage(
   const conversation: Conversation = {
     id: `conversation:${account.id}:${messageEvent.sender.id}`,
     accountId: account.id,
+    participantProfileId: profileId(account, messageEvent.sender.id),
     externalThreadId: messageEvent.sender.id,
     participantExternalId: messageEvent.sender.id,
     status: "received",
@@ -101,6 +105,7 @@ function importMessage(
   return {
     type: "message",
     account,
+    participantProfile: makeParticipantProfile(account, messageEvent.sender.id, receivedAt),
     conversation,
     message: {
       id: `message:${account.id}:${messageEvent.message?.mid}`,
@@ -108,7 +113,7 @@ function importMessage(
       conversationId: conversation.id,
       externalId: messageEvent.message?.mid ?? "",
       direction: "inbound",
-      text: messageEvent.message?.text ?? "",
+      text: summarizeMessageEvent(messageEvent),
       authorExternalId: messageEvent.sender.id,
       status: "received",
       receivedAt,
@@ -138,10 +143,16 @@ function importComment(
       ? isoFromUnixSeconds(changeEvent.value.created_time)
       : isoFromUnixSeconds(fallbackUnixSeconds);
 
-  return {
-    type: "comment",
-    account,
-    comment: {
+    return {
+      type: "comment",
+      account,
+      participantProfile: makeParticipantProfile(
+        account,
+        changeEvent.value.from?.id ?? "unknown",
+        receivedAt,
+        changeEvent.value.from?.username
+      ),
+      comment: {
       id: `comment:${account.id}:${externalId}`,
       accountId: account.id,
       externalId,
@@ -156,6 +167,56 @@ function importComment(
   };
 }
 
+function summarizeMessageEvent(messageEvent: MetaMessagingEvent): string {
+  const text = messageEvent.message?.text?.trim();
+  if (text !== undefined && text.length > 0) {
+    return text;
+  }
+
+  const story = messageEvent.message?.reply_to?.story;
+  if (story !== undefined) {
+    const sticker = story.link_sticker_url === undefined ? "" : ` Link: ${story.link_sticker_url}`;
+    return `[Respuesta a historia de Instagram]${sticker}`;
+  }
+
+  const attachments = messageEvent.message?.attachments ?? [];
+  if (attachments.length > 0) {
+    const attachmentTypes = attachments.map((attachment) => attachment.type).join(", ");
+    return `[Adjunto de Instagram: ${attachmentTypes}]`;
+  }
+
+  return "[Evento de Instagram sin texto visible]";
+}
+
+function makeParticipantProfile(
+  account: SocialAccount,
+  externalId: string,
+  seenAt: string,
+  username?: string
+): ParticipantProfile {
+  const displayName = username === undefined ? `Instagram ${shortId(externalId)}` : `@${username}`;
+  return {
+    id: profileId(account, externalId),
+    provider: "meta",
+    channel: account.channel,
+    externalId,
+    displayName,
+    username,
+    profileUrl: username === undefined ? undefined : `https://www.instagram.com/${username}/`,
+    kind: "unknown",
+    lastSeenAt: seenAt,
+    createdAt: seenAt
+  };
+}
+
+function profileId(account: SocialAccount, externalId: string): string {
+  return `profile:${account.id}:${externalId}`;
+}
+
+function shortId(externalId: string): string {
+  return externalId.length <= 8 ? externalId : `${externalId.slice(0, 4)}...${externalId.slice(-4)}`;
+}
+
 function isoFromUnixMs(unixMs: number): string {
   return new Date(unixMs).toISOString();
 }
@@ -163,4 +224,3 @@ function isoFromUnixMs(unixMs: number): string {
 function isoFromUnixSeconds(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toISOString();
 }
-
