@@ -24,17 +24,27 @@ type Entity =
   | AgentAction;
 
 export class SocialInboxStore {
-  private readonly state: SocialInboxState = {
-    socialAccounts: [],
-    conversations: [],
-    messages: [],
-    comments: [],
-    tasks: [],
-    assignments: [],
-    approvals: [],
-    auditLog: [],
-    agentActions: []
-  };
+  private readonly state: SocialInboxState;
+
+  constructor(initialState?: SocialInboxState) {
+    this.state = initialState === undefined ? createEmptySocialInboxState() : structuredClone(initialState);
+  }
+
+  static emptyState(): SocialInboxState {
+    return createEmptySocialInboxState();
+  }
+
+  replaceState(nextState: SocialInboxState): void {
+    this.state.socialAccounts = structuredClone(nextState.socialAccounts);
+    this.state.conversations = structuredClone(nextState.conversations);
+    this.state.messages = structuredClone(nextState.messages);
+    this.state.comments = structuredClone(nextState.comments);
+    this.state.tasks = structuredClone(nextState.tasks);
+    this.state.assignments = structuredClone(nextState.assignments);
+    this.state.approvals = structuredClone(nextState.approvals);
+    this.state.auditLog = structuredClone(nextState.auditLog);
+    this.state.agentActions = structuredClone(nextState.agentActions);
+  }
 
   snapshot(): SocialInboxState {
     return structuredClone(this.state);
@@ -121,6 +131,20 @@ export class SocialInboxStore {
     collection[index] = entity;
     return entity;
   }
+}
+
+export function createEmptySocialInboxState(): SocialInboxState {
+  return {
+    socialAccounts: [],
+    conversations: [],
+    messages: [],
+    comments: [],
+    tasks: [],
+    assignments: [],
+    approvals: [],
+    auditLog: [],
+    agentActions: []
+  };
 }
 
 export function stableId(...parts: string[]): string {
