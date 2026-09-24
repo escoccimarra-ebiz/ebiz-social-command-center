@@ -69,6 +69,13 @@ interface OperatorReplyParams {
   client: InstagramOutboundClient;
 }
 
+interface SuggestedReplySendParams {
+  replyId: string;
+  actorId: HumanGateActor;
+  sentAt: string;
+  client: InstagramOutboundClient;
+}
+
 export function classifyAsFlorencia(
   store: SocialInboxStore,
   params: FlorenciaActionParams
@@ -407,6 +414,51 @@ export async function sendOperatorReplyToInstagram(
     providerMessageId: result.providerMessageId,
     createdAt: params.sentAt
   });
+}
+
+export async function sendSuggestedReplyToInstagram(
+  store: SocialInboxStore,
+  params: SuggestedReplySendParams
+) {
+  const reply = store.getSuggestedReply(params.replyId);
+  if (reply === undefined) {
+    throw new Error(`Suggested reply not found: ${params.replyId}`);
+  }
+
+  if (reply.state !== "ready_to_send") {
+    throw new Error("Suggested reply must be approved before sending");
+  }
+
+  const message = await sendOperatorReplyToInstagram(store, {
+    conversationId: reply.conversationId,
+    actorId: params.actorId,
+    text: reply.text,
+    sentAt: params.sentAt,
+    client: params.client
+  });
+
+  store.updateSuggestedReply(reply.id, {
+    state: "sent",
+    decidedBy: params.actorId,
+    decidedAt: params.sentAt,
+    externalSendBlocked: false
+  });
+
+  store.addAuditLog({
+    id: stableId("audit", "suggested-reply-sent", reply.id, params.sentAt),
+    actorId: params.actorId,
+    action: "reply.sent_to_instagram",
+    entityType: "suggested_reply",
+    entityId: reply.id,
+    createdAt: params.sentAt,
+    metadata: {
+      conversationId: reply.conversationId,
+      messageId: message.id,
+      providerMessageId: message.externalId
+    }
+  });
+
+  return { reply: store.getSuggestedReply(reply.id), message };
 }
 
 function requireEsteban(actor: HumanGateActor): void {

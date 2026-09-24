@@ -358,8 +358,8 @@ export const dashboardHtml = String.raw`<!doctype html>
             <div id="conversation-head" class="conversation-head"></div>
             <div class="thread" id="thread"></div>
             <div class="composer">
-              <textarea id="operator-text" placeholder="Mensaje para enviar al usuario por Instagram"></textarea>
-              <button class="dark" id="operator-reply">Enviar a Instagram</button>
+              <textarea id="operator-text" placeholder="Respuesta directa al usuario/prospecto por Instagram"></textarea>
+              <button class="dark" id="operator-reply">Enviar al usuario</button>
             </div>
           </article>
 
@@ -369,7 +369,7 @@ export const dashboardHtml = String.raw`<!doctype html>
               <section class="profile-card" id="profile"></section>
               <section class="form-block">
                 <h3>Florencia-MKT</h3>
-                <textarea id="mkt-output" placeholder="Trabajo de Florencia: clasificacion, borrador o motivo para pedir ayuda"></textarea>
+                <textarea id="mkt-output" placeholder="Trabajo interno de Florencia: clasificacion, borrador o motivo para pedir ayuda"></textarea>
                 <select id="escalation-reason">
                   <option value="ambiguous">Informacion ambigua</option>
                   <option value="missing_info">Informacion ausente</option>
@@ -378,12 +378,12 @@ export const dashboardHtml = String.raw`<!doctype html>
                 <div class="actions">
                   <button data-agent-action="classify">Clasificar</button>
                   <button class="primary" data-agent-action="draft">Borrador</button>
-                  <button class="danger" data-agent-action="escalate">Pedir ayuda humana</button>
+                  <button class="danger" data-agent-action="escalate">Pedir ayuda</button>
                 </div>
               </section>
               <section class="form-block">
                 <h3>Operacion humana</h3>
-                <textarea id="control-reason" placeholder="Nota interna: motivo de asignacion, decision o cierre"></textarea>
+                <textarea id="control-reason" placeholder="Nota interna: motivo de asignacion, decision o cierre. Esto no se envia al usuario."></textarea>
                 <div class="actions">
                   <button class="dark" data-control-action="take_control">Asignar a humano</button>
                   <button data-control-action="return_to_agent">Asignar a Florencia</button>
@@ -393,7 +393,7 @@ export const dashboardHtml = String.raw`<!doctype html>
               </section>
               <section class="form-block">
                 <h3>Respuesta sugerida</h3>
-                <textarea id="suggested-reply-text" placeholder="Respuesta que Florencia propone para enviar por Instagram"></textarea>
+                <textarea id="suggested-reply-text" placeholder="Respuesta que Florencia propone para enviar al usuario por Instagram"></textarea>
                 <select id="suggested-reply-sensitivity">
                   <option value="standard">Caso estandar</option>
                   <option value="sensitive">Caso sensible: requiere Esteban</option>
@@ -562,7 +562,7 @@ export const dashboardHtml = String.raw`<!doctype html>
         headEl.innerHTML =
           '<div class="conversation-title"><div class="person-line"><div class="avatar">' + initials(thread.title) +
           '</div><div><h2>' + escapeHtml(thread.title) + '</h2><div class="muted">' +
-          escapeHtml(profile?.profileUrl ?? profile?.externalId ?? "Instagram") + '</div></div></div><div class="badges">' +
+          escapeHtml(profileLabel(profile)) + '</div></div></div><div class="badges">' +
           badge(thread.status, statusTone(thread.status)) + badge("dueno: " + thread.owner, thread.owner === "esteban" ? "danger" : "blue") +
           (thread.conversation?.escalationReason ? badge(thread.conversation.escalationReason, "warn") : "") + '</div></div>';
         threadEl.innerHTML = conversationMessages(thread);
@@ -595,9 +595,9 @@ export const dashboardHtml = String.raw`<!doctype html>
       function renderProfile(thread) {
         const profile = thread.profile;
         return '<div class="person-line"><div class="avatar">' + initials(thread.title) + '</div><div class="person-main"><strong>' +
-          escapeHtml(thread.title) + '</strong><span class="muted">' + escapeHtml(profile?.username ? "@" + profile.username : profile?.externalId ?? "sin perfil enriquecido") +
+          escapeHtml(thread.title) + '</strong><span class="muted">' + escapeHtml(profileLabel(profile)) +
           '</span></div></div><div class="badges">' + badge(profile?.kind ?? "unknown") + badge(thread.kind) + '</div>' +
-          '<p class="muted">Remitente visible como perfil operativo. Si Meta entrega username, se muestra link directo; si no, se conserva el ID IG-scoped para trazabilidad.</p>';
+          '<p class="muted">Identidad del remitente/prospecto. Cuando Meta entrega username se muestra @usuario; si no, queda el ID IG para trazabilidad.</p>';
       }
 
       function renderAudit(thread) {
@@ -623,7 +623,8 @@ export const dashboardHtml = String.raw`<!doctype html>
         return rows.map((reply) =>
           '<div class="audit-row"><strong>' + escapeHtml(reply.state) + '</strong><div>' + escapeHtml(reply.text) +
           '</div><div class="muted">' + escapeHtml(reply.draftedAt) + '</div><div class="actions">' +
-          '<button data-reply-id="' + escapeHtml(reply.id) + '" data-reply-decision="approve_ready_to_send">Aprobar</button>' +
+          '<button data-reply-id="' + escapeHtml(reply.id) + '" data-reply-decision="approve_ready_to_send">Aprobar para envio</button>' +
+          (reply.state === "ready_to_send" ? '<button class="dark" data-send-reply-id="' + escapeHtml(reply.id) + '">Enviar al usuario</button>' : "") +
           '<button data-reply-id="' + escapeHtml(reply.id) + '" data-reply-decision="reject">Rechazar</button>' +
           '<button class="danger" data-reply-id="' + escapeHtml(reply.id) + '" data-reply-decision="escalate_esteban">Esteban</button>' +
           '</div></div>'
@@ -643,6 +644,17 @@ export const dashboardHtml = String.raw`<!doctype html>
         await load(selectedThreadId);
       });
 
+      suggestedRepliesEl.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-send-reply-id]");
+        if (!button) return;
+        if (!window.confirm("Enviar esta respuesta sugerida al usuario por Instagram?")) return;
+        await postJson("/api/suggested-reply-send", {
+          replyId: button.dataset.sendReplyId,
+          actorId: "operador-humano"
+        });
+        await load(selectedThreadId);
+      });
+
       async function recordOperatorIntervention() {
         const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
         const textEl = document.getElementById("control-reason");
@@ -658,7 +670,7 @@ export const dashboardHtml = String.raw`<!doctype html>
         const textEl = document.getElementById("operator-text");
         const text = textEl.value.trim();
         if (!thread || !text) { textEl.focus(); return; }
-        if (!window.confirm("Enviar este mensaje al usuario por Instagram?")) return;
+        if (!window.confirm("Enviar este mensaje al usuario/prospecto por Instagram?")) return;
         await postJson("/api/operator-reply", { conversationId: thread.id, actorId: "operador-humano", text });
         textEl.value = "";
         await load(thread.id);
@@ -734,6 +746,11 @@ export const dashboardHtml = String.raw`<!doctype html>
 
       function profileById(id) { return state.participantProfiles?.find((item) => item.id === id); }
       function profileByExternalId(id) { return state.participantProfiles?.find((item) => item.externalId === id); }
+      function profileLabel(profile) {
+        if (!profile) return "Instagram";
+        if (profile.username) return "@" + profile.username;
+        return profile.externalId ?? "Instagram";
+      }
       function timeOf(item) { return item.createdAt ?? item.receivedAt ?? item.updatedAt ?? ""; }
       function initials(value) { return String(value || "?").replace(/^@/, "").split(/[^a-z0-9]+/i).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?"; }
       function statusTone(status) {
