@@ -14,6 +14,13 @@ export type InboxItemType = "message" | "comment";
 export type HumanGateActor = "florencia-mkt" | "esteban" | "operador-humano" | "system";
 export type SensitivityLevel = "standard" | "sensitive";
 export type EscalationReason = "ambiguous" | "missing_info" | "sensitive";
+export type SuggestedReplyState =
+  | "drafted"
+  | "ready_to_send"
+  | "rejected"
+  | "requires_esteban"
+  | "sent"
+  | "failed";
 export type ApprovalState =
   | "pending_human_approval"
   | "requires_esteban"
@@ -136,6 +143,24 @@ export interface AgentAction {
   output: string;
 }
 
+export interface SuggestedReply {
+  id: string;
+  conversationId: string;
+  inboxItemType: InboxItemType;
+  inboxItemId: string;
+  channel: SocialChannel;
+  provider: SocialProvider;
+  text: string;
+  state: SuggestedReplyState;
+  draftedBy: "florencia-mkt";
+  draftedAt: string;
+  decidedBy?: HumanGateActor;
+  decidedAt?: string;
+  decisionReason?: string;
+  sensitivity: SensitivityLevel;
+  externalSendBlocked: boolean;
+}
+
 export interface SocialInboxState {
   socialAccounts: SocialAccount[];
   participantProfiles: ParticipantProfile[];
@@ -147,4 +172,5 @@ export interface SocialInboxState {
   approvals: Approval[];
   auditLog: AuditLogEntry[];
   agentActions: AgentAction[];
+  suggestedReplies: SuggestedReply[];
 }

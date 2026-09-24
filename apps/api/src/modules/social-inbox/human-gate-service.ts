@@ -4,7 +4,8 @@ import type {
   EscalationReason,
   HumanGateActor,
   InboxItemType,
-  SensitivityLevel
+  SensitivityLevel,
+  SuggestedReply
 } from "../../../../../packages/shared/src/types/social-inbox.js";
 import { assertOutboundAllowed } from "../../policy/outbound-policy.js";
 import { SocialInboxStore, stableId } from "./social-inbox-store.js";
@@ -42,6 +43,21 @@ interface EscalationParams {
   createdAt: string;
   reason: EscalationReason;
   detail: string;
+}
+
+interface SuggestedReplyParams extends InboxItemRef {
+  conversationId: string;
+  createdAt: string;
+  text: string;
+  sensitivity: SensitivityLevel;
+}
+
+interface SuggestedReplyDecisionParams {
+  replyId: string;
+  decidedAt: string;
+  decidedBy: HumanGateActor;
+  decision: "approve_ready_to_send" | "reject" | "escalate_esteban";
+  reason: string;
 }
 
 export function classifyAsFlorencia(
@@ -98,6 +114,123 @@ export function draftAsFlorencia(store: SocialInboxStore, params: FlorenciaActio
   });
 
   return action;
+}
+
+export function suggestReplyAsFlorencia(
+  store: SocialInboxStore,
+  params: SuggestedReplyParams
+): SuggestedReply {
+  if (params.text.trim().length === 0) {
+    throw new Error("Suggested replies require text");
+  }
+
+  const conversation = store.getConversation(params.conversationId);
+  if (conversation === undefined) {
+    throw new Error(`Conversation not found: ${params.conversationId}`);
+  }
+
+  const account = store.getAccount(conversation.accountId);
+  if (account === undefined) {
+    throw new Error(`Social account not found: ${conversation.accountId}`);
+  }
+
+  const reply = store.addSuggestedReply({
+    id: stableId("suggested-reply", params.conversationId, params.inboxItemId, params.createdAt),
+    conversationId: params.conversationId,
+    inboxItemType: params.inboxItemType,
+    inboxItemId: params.inboxItemId,
+    channel: account.channel,
+    provider: account.provider,
+    text: params.text,
+    state: params.sensitivity === "sensitive" ? "requires_esteban" : "drafted",
+    draftedBy: "florencia-mkt",
+    draftedAt: params.createdAt,
+    sensitivity: params.sensitivity,
+    externalSendBlocked: true
+  });
+
+  const action = draftAsFlorencia(store, {
+    inboxItemType: params.inboxItemType,
+    inboxItemId: params.inboxItemId,
+    createdAt: params.createdAt,
+    output: params.text
+  });
+
+  store.updateConversation(params.conversationId, {
+    status: params.sensitivity === "sensitive" ? "requires_esteban" : "pending_human_approval",
+    ownerActorId: params.sensitivity === "sensitive" ? "esteban" : "operador-humano",
+    lastAgentActionAt: params.createdAt,
+    updatedAt: params.createdAt
+  });
+
+  store.addAuditLog({
+    id: stableId("audit", reply.id),
+    actorId: "florencia-mkt",
+    action: "reply.suggested",
+    entityType: "suggested_reply",
+    entityId: reply.id,
+    createdAt: params.createdAt,
+    metadata: {
+      agentActionId: action.id,
+      conversationId: params.conversationId,
+      inboxItemId: params.inboxItemId,
+      sensitivity: params.sensitivity,
+      externalSendBlocked: true
+    }
+  });
+
+  return reply;
+}
+
+export function decideSuggestedReply(
+  store: SocialInboxStore,
+  params: SuggestedReplyDecisionParams
+): SuggestedReply {
+  if (params.reason.trim().length === 0) {
+    throw new Error("Suggested reply decisions require an audit reason");
+  }
+
+  assertExternalResponseStillBlocked();
+
+  const reply = store.getSuggestedReply(params.replyId);
+  if (reply === undefined) {
+    throw new Error(`Suggested reply not found: ${params.replyId}`);
+  }
+
+  if (reply.sensitivity === "sensitive" && params.decision === "approve_ready_to_send") {
+    requireEsteban(params.decidedBy);
+  }
+
+  const state =
+    params.decision === "approve_ready_to_send"
+      ? "ready_to_send"
+      : params.decision === "reject"
+        ? "rejected"
+        : "requires_esteban";
+
+  const decidedReply = store.updateSuggestedReply(params.replyId, {
+    state,
+    decidedBy: params.decidedBy,
+    decidedAt: params.decidedAt,
+    decisionReason: params.reason,
+    externalSendBlocked: true
+  });
+
+  store.addAuditLog({
+    id: stableId("audit", "suggested-reply", params.decision, params.replyId, params.decidedAt),
+    actorId: params.decidedBy,
+    action: `reply.${state}`,
+    entityType: "suggested_reply",
+    entityId: params.replyId,
+    createdAt: params.decidedAt,
+    metadata: {
+      conversationId: reply.conversationId,
+      reason: params.reason,
+      externalSendBlocked: true
+    }
+  });
+
+  return decidedReply;
 }
 
 export function escalateAsFlorencia(store: SocialInboxStore, params: EscalationParams): AgentAction {

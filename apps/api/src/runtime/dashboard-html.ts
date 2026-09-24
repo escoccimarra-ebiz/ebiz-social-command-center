@@ -390,6 +390,18 @@ export const dashboardHtml = String.raw`<!doctype html>
                 </div>
               </section>
               <section class="form-block">
+                <h3>Respuesta sugerida</h3>
+                <textarea id="suggested-reply-text" placeholder="Respuesta que Florencia propone para enviar por Instagram"></textarea>
+                <select id="suggested-reply-sensitivity">
+                  <option value="standard">Caso estandar</option>
+                  <option value="sensitive">Caso sensible: requiere Esteban</option>
+                </select>
+                <div class="actions">
+                  <button class="primary" id="suggest-reply">Crear sugerencia</button>
+                </div>
+                <div class="audit" id="suggested-replies"></div>
+              </section>
+              <section class="form-block">
                 <h3>Bitacora</h3>
                 <div class="audit" id="audit"></div>
               </section>
@@ -407,6 +419,7 @@ export const dashboardHtml = String.raw`<!doctype html>
       const headEl = document.getElementById("conversation-head");
       const profileEl = document.getElementById("profile");
       const auditEl = document.getElementById("audit");
+      const suggestedRepliesEl = document.getElementById("suggested-replies");
       const metricsEl = document.getElementById("metrics");
       const statusEl = document.getElementById("runtime-status");
       const searchEl = document.getElementById("search");
@@ -417,6 +430,7 @@ export const dashboardHtml = String.raw`<!doctype html>
         await load();
       });
       document.getElementById("operator-send").addEventListener("click", recordOperatorIntervention);
+      document.getElementById("suggest-reply").addEventListener("click", createSuggestedReply);
       searchEl.addEventListener("input", renderAll);
       for (const button of document.querySelectorAll("[data-agent-action]")) {
         button.addEventListener("click", () => runMktAgent(button.dataset.agentAction));
@@ -537,6 +551,7 @@ export const dashboardHtml = String.raw`<!doctype html>
           headEl.innerHTML = '<div class="empty">Sin seleccion</div>';
           threadEl.innerHTML = "";
           profileEl.innerHTML = "";
+          suggestedRepliesEl.innerHTML = "";
           auditEl.innerHTML = "";
           return;
         }
@@ -549,6 +564,7 @@ export const dashboardHtml = String.raw`<!doctype html>
           (thread.conversation?.escalationReason ? badge(thread.conversation.escalationReason, "warn") : "") + '</div></div>';
         threadEl.innerHTML = conversationMessages(thread);
         profileEl.innerHTML = renderProfile(thread);
+        suggestedRepliesEl.innerHTML = renderSuggestedReplies(thread);
         auditEl.innerHTML = renderAudit(thread);
       }
 
@@ -585,6 +601,7 @@ export const dashboardHtml = String.raw`<!doctype html>
         const targetIds = new Set([thread.id, thread.item?.id]);
         if (thread.kind === "conversation") {
           for (const message of state.messages.filter((item) => item.conversationId === thread.id)) targetIds.add(message.id);
+          for (const reply of state.suggestedReplies.filter((item) => item.conversationId === thread.id)) targetIds.add(reply.id);
         }
         const rows = [
           ...state.agentActions.filter((item) => targetIds.has(item.inboxItemId)).map((item) => ({ at: item.createdAt, title: "MKT · " + item.action, text: item.output })),
@@ -594,6 +611,34 @@ export const dashboardHtml = String.raw`<!doctype html>
         if (rows.length === 0) return '<div class="muted">Sin actividad interna.</div>';
         return rows.map((row) => '<div class="audit-row"><strong>' + escapeHtml(row.title) + '</strong><div class="muted">' + escapeHtml(row.text ?? "") + '</div><div class="muted">' + escapeHtml(row.at ?? "") + '</div></div>').join("");
       }
+
+      function renderSuggestedReplies(thread) {
+        if (thread.kind !== "conversation") return '<div class="muted">Selecciona una conversacion.</div>';
+        const rows = state.suggestedReplies.filter((item) => item.conversationId === thread.id)
+          .sort((a, b) => b.draftedAt.localeCompare(a.draftedAt));
+        if (rows.length === 0) return '<div class="muted">Sin respuestas sugeridas.</div>';
+        return rows.map((reply) =>
+          '<div class="audit-row"><strong>' + escapeHtml(reply.state) + '</strong><div>' + escapeHtml(reply.text) +
+          '</div><div class="muted">' + escapeHtml(reply.draftedAt) + '</div><div class="actions">' +
+          '<button data-reply-id="' + escapeHtml(reply.id) + '" data-reply-decision="approve_ready_to_send">Aprobar</button>' +
+          '<button data-reply-id="' + escapeHtml(reply.id) + '" data-reply-decision="reject">Rechazar</button>' +
+          '<button class="danger" data-reply-id="' + escapeHtml(reply.id) + '" data-reply-decision="escalate_esteban">Esteban</button>' +
+          '</div></div>'
+        ).join("");
+      }
+
+      suggestedRepliesEl.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-reply-decision]");
+        if (!button) return;
+        const reason = document.getElementById("control-reason").value.trim() || "Decision humana desde consola SCC.";
+        await postJson("/api/suggested-reply-decision", {
+          replyId: button.dataset.replyId,
+          decidedBy: button.dataset.replyDecision === "escalate_esteban" ? "esteban" : "operador-humano",
+          decision: button.dataset.replyDecision,
+          reason
+        });
+        await load(selectedThreadId);
+      });
 
       async function recordOperatorIntervention() {
         const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
@@ -619,6 +664,22 @@ export const dashboardHtml = String.raw`<!doctype html>
           escalationReason: document.getElementById("escalation-reason").value
         });
         outputEl.value = "";
+        await load(target.threadId);
+      }
+
+      async function createSuggestedReply() {
+        const target = currentTarget();
+        const textEl = document.getElementById("suggested-reply-text");
+        const text = textEl.value.trim();
+        if (!target || !text) { textEl.focus(); return; }
+        await postJson("/api/suggested-reply", {
+          conversationId: target.conversationId,
+          inboxItemType: target.inboxItemType,
+          inboxItemId: target.inboxItemId,
+          text,
+          sensitivity: document.getElementById("suggested-reply-sensitivity").value
+        });
+        textEl.value = "";
         await load(target.threadId);
       }
 

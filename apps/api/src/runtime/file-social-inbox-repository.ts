@@ -42,7 +42,10 @@ function normalizeState(input: Partial<SocialInboxState>): SocialInboxState {
     assignments: Array.isArray(input.assignments) ? input.assignments : empty.assignments,
     approvals: Array.isArray(input.approvals) ? input.approvals : empty.approvals,
     auditLog: Array.isArray(input.auditLog) ? input.auditLog : empty.auditLog,
-    agentActions: Array.isArray(input.agentActions) ? input.agentActions : empty.agentActions
+    agentActions: Array.isArray(input.agentActions) ? input.agentActions : empty.agentActions,
+    suggestedReplies: Array.isArray(input.suggestedReplies)
+      ? input.suggestedReplies
+      : empty.suggestedReplies
   };
 }
 

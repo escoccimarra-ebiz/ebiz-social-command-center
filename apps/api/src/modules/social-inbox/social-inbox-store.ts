@@ -11,6 +11,7 @@ import type {
   SocialComment,
   SocialInboxState,
   SocialMessage,
+  SuggestedReply,
   Task
 } from "../../../../../packages/shared/src/types/social-inbox.js";
 
@@ -20,6 +21,7 @@ type Entity =
   | Conversation
   | SocialMessage
   | SocialComment
+  | SuggestedReply
   | Task
   | Assignment
   | Approval
@@ -48,6 +50,7 @@ export class SocialInboxStore {
     this.state.approvals = structuredClone(nextState.approvals);
     this.state.auditLog = structuredClone(nextState.auditLog);
     this.state.agentActions = structuredClone(nextState.agentActions);
+    this.state.suggestedReplies = structuredClone(nextState.suggestedReplies ?? []);
   }
 
   snapshot(): SocialInboxState {
@@ -56,6 +59,10 @@ export class SocialInboxStore {
 
   upsertAccount(account: SocialAccount): SocialAccount {
     return this.upsert(this.state.socialAccounts, account);
+  }
+
+  getAccount(accountId: string): SocialAccount | undefined {
+    return this.state.socialAccounts.find((account) => account.id === accountId);
   }
 
   upsertParticipantProfile(profile: ParticipantProfile): ParticipantProfile {
@@ -124,6 +131,25 @@ export class SocialInboxStore {
   addAgentAction(action: AgentAction): AgentAction {
     this.state.agentActions.push(action);
     return action;
+  }
+
+  addSuggestedReply(reply: SuggestedReply): SuggestedReply {
+    this.state.suggestedReplies.push(reply);
+    return reply;
+  }
+
+  getSuggestedReply(replyId: string): SuggestedReply | undefined {
+    return this.state.suggestedReplies.find((reply) => reply.id === replyId);
+  }
+
+  updateSuggestedReply(replyId: string, patch: Partial<SuggestedReply>): SuggestedReply {
+    const reply = this.getSuggestedReply(replyId);
+    if (reply === undefined) {
+      throw new Error(`Suggested reply not found: ${replyId}`);
+    }
+
+    Object.assign(reply, patch);
+    return reply;
   }
 
   addInternalConversationMessage(params: {
@@ -222,7 +248,8 @@ export function createEmptySocialInboxState(): SocialInboxState {
     assignments: [],
     approvals: [],
     auditLog: [],
-    agentActions: []
+    agentActions: [],
+    suggestedReplies: []
   };
 }
 
