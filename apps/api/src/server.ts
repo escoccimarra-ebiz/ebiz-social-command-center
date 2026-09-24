@@ -6,8 +6,10 @@ import {
   classifyAsFlorencia,
   decideHumanGate,
   decideConversationControl,
+  decideSuggestedReply,
   draftAsFlorencia,
-  escalateAsFlorencia
+  escalateAsFlorencia,
+  suggestReplyAsFlorencia
 } from "./modules/social-inbox/human-gate-service.js";
 import { SocialInboxStore, stableId } from "./modules/social-inbox/social-inbox-store.js";
 import { dashboardHtml } from "./runtime/dashboard-html.js";
@@ -162,6 +164,35 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/suggested-reply") {
+    const body = (await readJson(request)) as Partial<SuggestedReplyRequest>;
+    const reply = suggestReplyAsFlorencia(store, {
+      conversationId: requireString(body.conversationId, "conversationId"),
+      inboxItemType: requireInboxItemType(body.inboxItemType),
+      inboxItemId: requireString(body.inboxItemId, "inboxItemId"),
+      createdAt: new Date().toISOString(),
+      text: requireString(body.text, "text"),
+      sensitivity: requireSensitivity(body.sensitivity)
+    });
+    await repository.save(store.snapshot());
+    json(response, 201, reply);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/suggested-reply-decision") {
+    const body = (await readJson(request)) as Partial<SuggestedReplyDecisionRequest>;
+    const reply = decideSuggestedReply(store, {
+      replyId: requireString(body.replyId, "replyId"),
+      decidedAt: new Date().toISOString(),
+      decidedBy: requireHumanGateActor(body.decidedBy),
+      decision: requireSuggestedReplyDecision(body.decision),
+      reason: requireString(body.reason, "reason")
+    });
+    await repository.save(store.snapshot());
+    json(response, 201, reply);
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/demo-seed") {
     seedDemoData();
     await repository.save(store.snapshot());
@@ -201,6 +232,21 @@ interface MktAgentRequest {
   action: "classify" | "draft" | "escalate";
   output: string;
   escalationReason?: EscalationReason;
+}
+
+interface SuggestedReplyRequest {
+  conversationId: string;
+  inboxItemType: InboxItemType;
+  inboxItemId: string;
+  text: string;
+  sensitivity?: SensitivityLevel;
+}
+
+interface SuggestedReplyDecisionRequest {
+  replyId: string;
+  decidedBy: HumanGateActor;
+  decision: "approve_ready_to_send" | "reject" | "escalate_esteban";
+  reason: string;
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
@@ -396,4 +442,12 @@ function requireDecision(value: unknown): HumanGateRequest["decision"] {
   }
 
   throw new Error("decision is invalid");
+}
+
+function requireSuggestedReplyDecision(value: unknown): SuggestedReplyDecisionRequest["decision"] {
+  if (value === "approve_ready_to_send" || value === "reject" || value === "escalate_esteban") {
+    return value;
+  }
+
+  throw new Error("suggested reply decision is invalid");
 }

@@ -4,8 +4,10 @@ import {
   classifyAsFlorencia,
   decideConversationControl,
   decideHumanGate,
+  decideSuggestedReply,
   draftAsFlorencia,
-  escalateAsFlorencia
+  escalateAsFlorencia,
+  suggestReplyAsFlorencia
 } from "../apps/api/src/modules/social-inbox/human-gate-service.js";
 import { SocialInboxStore } from "../apps/api/src/modules/social-inbox/social-inbox-store.js";
 
@@ -153,6 +155,62 @@ describe("Florencia-MKT human gate flow", () => {
     assert.equal(conversation?.ownerActorId, "operador-humano");
     assert.equal(conversation?.escalationReason, "missing_info");
     assert.match(escalation.output, /Falta precio vigente/);
+  });
+
+  it("lets Florencia suggest an Instagram reply that becomes ready to send without outbound delivery", () => {
+    const store = seededConversationStore();
+
+    const reply = suggestReplyAsFlorencia(store, {
+      conversationId: "conversation-1",
+      inboxItemType: "message",
+      inboxItemId: "message-1",
+      createdAt: "2026-09-23T13:14:00.000Z",
+      text: "Hola! El day pass incluye puesto de trabajo y wifi. Te confirmo disponibilidad por fecha.",
+      sensitivity: "standard"
+    });
+    const draftedSnapshot = store.snapshot();
+    const decided = decideSuggestedReply(store, {
+      replyId: reply.id,
+      decidedAt: "2026-09-23T13:15:00.000Z",
+      decidedBy: "operador-humano",
+      decision: "approve_ready_to_send",
+      reason: "Respuesta estandar; falta solo activar envio controlado."
+    });
+    const snapshot = store.snapshot();
+
+    assert.equal(draftedSnapshot.suggestedReplies[0]?.state, "drafted");
+    assert.equal(decided.state, "ready_to_send");
+    assert.equal(decided.externalSendBlocked, true);
+    assert.equal(snapshot.suggestedReplies.length, 1);
+    assert.equal(snapshot.agentActions.length, 1);
+    assert.equal(snapshot.auditLog.at(-1)?.action, "reply.ready_to_send");
+    assert.equal(snapshot.auditLog.at(-1)?.metadata?.externalSendBlocked, true);
+  });
+
+  it("requires Esteban to approve sensitive suggested replies", () => {
+    const store = seededConversationStore();
+
+    const reply = suggestReplyAsFlorencia(store, {
+      conversationId: "conversation-1",
+      inboxItemType: "message",
+      inboxItemId: "message-1",
+      createdAt: "2026-09-23T13:16:00.000Z",
+      text: "Respuesta sensible pendiente de criterio ejecutivo.",
+      sensitivity: "sensitive"
+    });
+
+    assert.equal(reply.state, "requires_esteban");
+    assert.throws(
+      () =>
+        decideSuggestedReply(store, {
+          replyId: reply.id,
+          decidedAt: "2026-09-23T13:17:00.000Z",
+          decidedBy: "florencia-mkt",
+          decision: "approve_ready_to_send",
+          reason: "Florencia intenta aprobar caso sensible."
+        }),
+      new Error("Sensitive social cases require Esteban approval")
+    );
   });
 });
 
