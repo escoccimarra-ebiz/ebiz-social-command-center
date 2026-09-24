@@ -195,6 +195,50 @@ export class SocialInboxStore {
     return message;
   }
 
+  addOutboundConversationMessage(params: {
+    conversationId: string;
+    accountId: string;
+    actorId: HumanGateActor;
+    text: string;
+    providerMessageId?: string;
+    createdAt: string;
+  }): SocialMessage {
+    const message = this.upsertMessage({
+      id: stableId("message", "outbound", params.conversationId, params.actorId, params.createdAt),
+      accountId: params.accountId,
+      conversationId: params.conversationId,
+      externalId: params.providerMessageId ?? stableId("outbound", params.actorId, params.createdAt),
+      direction: "outbound",
+      text: params.text,
+      authorExternalId: params.actorId,
+      status: "sent",
+      receivedAt: params.createdAt,
+      createdAt: params.createdAt
+    });
+
+    this.addAuditLog({
+      id: stableId("audit", "operator-reply-sent", message.id),
+      actorId: params.actorId,
+      action: "conversation.operator_reply_sent",
+      entityType: "conversation",
+      entityId: params.conversationId,
+      createdAt: params.createdAt,
+      metadata: {
+        messageId: message.id,
+        providerMessageId: params.providerMessageId
+      }
+    });
+
+    this.updateConversation(params.conversationId, {
+      status: "normalized",
+      ownerActorId: "florencia-mkt",
+      lastHumanInterventionAt: params.createdAt,
+      updatedAt: params.createdAt
+    });
+
+    return message;
+  }
+
   approveInternal(params: {
     inboxItemType: InboxItemType;
     inboxItemId: string;

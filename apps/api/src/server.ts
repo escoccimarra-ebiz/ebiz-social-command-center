@@ -9,8 +9,13 @@ import {
   decideSuggestedReply,
   draftAsFlorencia,
   escalateAsFlorencia,
+  sendOperatorReplyToInstagram,
   suggestReplyAsFlorencia
 } from "./modules/social-inbox/human-gate-service.js";
+import {
+  DisabledInstagramOutboundClient,
+  HttpInstagramOutboundClient
+} from "./modules/instagram/instagram-outbound-client.js";
 import { SocialInboxStore, stableId } from "./modules/social-inbox/social-inbox-store.js";
 import { dashboardHtml } from "./runtime/dashboard-html.js";
 import { FileSocialInboxRepository } from "./runtime/file-social-inbox-repository.js";
@@ -27,6 +32,10 @@ const host = process.env.HOST ?? "0.0.0.0";
 const dataDir = process.env.SCC_DATA_DIR ?? "/data/ebiz-social-command-center";
 const repository = new FileSocialInboxRepository(join(dataDir, "social-inbox-state.json"));
 const store = new SocialInboxStore(await repository.load());
+const instagramOutboundClient =
+  process.env.SCC_META_OUTBOUND_URL === undefined
+    ? new DisabledInstagramOutboundClient()
+    : new HttpInstagramOutboundClient(process.env.SCC_META_OUTBOUND_URL, process.env.SCC_INTERNAL_SECRET);
 
 const server = createServer(async (request, response) => {
   try {
@@ -117,6 +126,20 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
       actorId: requireHumanGateActor(body.actorId),
       text: requireString(body.text, "text"),
       createdAt: new Date().toISOString()
+    });
+    await repository.save(store.snapshot());
+    json(response, 201, message);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/operator-reply") {
+    const body = (await readJson(request)) as Partial<OperatorInterventionRequest>;
+    const message = await sendOperatorReplyToInstagram(store, {
+      conversationId: requireString(body.conversationId, "conversationId"),
+      actorId: requireHumanGateActor(body.actorId),
+      text: requireString(body.text, "text"),
+      sentAt: new Date().toISOString(),
+      client: instagramOutboundClient
     });
     await repository.save(store.snapshot());
     json(response, 201, message);

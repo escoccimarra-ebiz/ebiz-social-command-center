@@ -250,11 +250,12 @@ export const dashboardHtml = String.raw`<!doctype html>
         padding: 11px 13px;
         background: var(--white);
       }
-      .message.internal { margin-left: auto; background: var(--nav); border-color: var(--nav); color: var(--white); }
+      .message.internal { margin-left: auto; background: #eef2f7; border-color: #ccd6e4; color: var(--ink); }
+      .message.outbound { margin-left: auto; background: var(--nav); border-color: var(--nav); color: var(--white); }
       .message strong { display: block; font-size: 12px; margin-bottom: 5px; }
       .message p { white-space: pre-wrap; line-height: 1.45; }
       .message small { display: block; margin-top: 7px; color: var(--muted); }
-      .message.internal small { color: #cbd5e1; }
+      .message.outbound small { color: #cbd5e1; }
       .composer {
         padding: 14px;
         border-top: 1px solid var(--line);
@@ -357,8 +358,8 @@ export const dashboardHtml = String.raw`<!doctype html>
             <div id="conversation-head" class="conversation-head"></div>
             <div class="thread" id="thread"></div>
             <div class="composer">
-              <textarea id="operator-text" placeholder="Nota o intervencion interna del operador"></textarea>
-              <button class="dark" id="operator-send">Registrar</button>
+              <textarea id="operator-text" placeholder="Mensaje para enviar al usuario por Instagram"></textarea>
+              <button class="dark" id="operator-reply">Enviar a Instagram</button>
             </div>
           </article>
 
@@ -368,7 +369,7 @@ export const dashboardHtml = String.raw`<!doctype html>
               <section class="profile-card" id="profile"></section>
               <section class="form-block">
                 <h3>Florencia-MKT</h3>
-                <textarea id="mkt-output" placeholder="Borrador, clasificacion o motivo de escalamiento"></textarea>
+                <textarea id="mkt-output" placeholder="Trabajo de Florencia: clasificacion, borrador o motivo para pedir ayuda"></textarea>
                 <select id="escalation-reason">
                   <option value="ambiguous">Informacion ambigua</option>
                   <option value="missing_info">Informacion ausente</option>
@@ -377,17 +378,18 @@ export const dashboardHtml = String.raw`<!doctype html>
                 <div class="actions">
                   <button data-agent-action="classify">Clasificar</button>
                   <button class="primary" data-agent-action="draft">Borrador</button>
-                  <button class="danger" data-agent-action="escalate">Escalar</button>
+                  <button class="danger" data-agent-action="escalate">Pedir ayuda humana</button>
                 </div>
               </section>
               <section class="form-block">
-                <h3>Control humano</h3>
-                <textarea id="control-reason" placeholder="Motivo auditable"></textarea>
+                <h3>Operacion humana</h3>
+                <textarea id="control-reason" placeholder="Nota interna: motivo de asignacion, decision o cierre"></textarea>
                 <div class="actions">
-                  <button class="dark" data-control-action="take_control">Tomar control</button>
-                  <button data-control-action="return_to_agent">Devolver a MKT</button>
-                  <button data-control-action="resolve">Resolver</button>
+                  <button class="dark" data-control-action="take_control">Asignar a humano</button>
+                  <button data-control-action="return_to_agent">Asignar a Florencia</button>
+                  <button data-control-action="resolve">Cerrar caso</button>
                 </div>
+                <button id="operator-note">Guardar nota interna</button>
               </section>
               <section class="form-block">
                 <h3>Respuesta sugerida</h3>
@@ -429,7 +431,8 @@ export const dashboardHtml = String.raw`<!doctype html>
         await fetch("/api/demo-seed", { method: "POST" });
         await load();
       });
-      document.getElementById("operator-send").addEventListener("click", recordOperatorIntervention);
+      document.getElementById("operator-reply").addEventListener("click", sendOperatorReply);
+      document.getElementById("operator-note").addEventListener("click", recordOperatorIntervention);
       document.getElementById("suggest-reply").addEventListener("click", createSuggestedReply);
       searchEl.addEventListener("input", renderAll);
       for (const button of document.querySelectorAll("[data-agent-action]")) {
@@ -574,17 +577,17 @@ export const dashboardHtml = String.raw`<!doctype html>
           for (const message of state.messages.filter((item) => item.conversationId === thread.id)) {
             entries.push({
               at: message.createdAt,
-              internal: message.direction === "internal",
-              who: message.direction === "internal" ? message.authorExternalId : (thread.profile?.displayName ?? "Prospecto"),
+              mode: message.direction,
+              who: message.direction === "inbound" ? (thread.profile?.displayName ?? "Prospecto") : message.authorExternalId,
               text: message.text || "(evento sin texto: posible adjunto/reaccion)"
             });
           }
         } else {
-          entries.push({ at: thread.item.createdAt, internal: false, who: thread.title, text: thread.item.text || "(comentario sin texto)" });
+          entries.push({ at: thread.item.createdAt, mode: "inbound", who: thread.title, text: thread.item.text || "(comentario sin texto)" });
         }
         if (entries.length === 0) return '<div class="empty">Sin mensajes</div>';
         return entries.sort((a, b) => a.at.localeCompare(b.at)).map((entry) =>
-          '<article class="message ' + (entry.internal ? "internal" : "") + '"><strong>' +
+          '<article class="message ' + escapeHtml(entry.mode === "outbound" ? "outbound" : entry.mode === "internal" ? "internal" : "") + '"><strong>' +
           escapeHtml(entry.who) + '</strong><p>' + escapeHtml(entry.text) + '</p><small>' + escapeHtml(entry.at) + '</small></article>'
         ).join("");
       }
@@ -642,10 +645,21 @@ export const dashboardHtml = String.raw`<!doctype html>
 
       async function recordOperatorIntervention() {
         const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
-        const textEl = document.getElementById("operator-text");
+        const textEl = document.getElementById("control-reason");
         const text = textEl.value.trim();
         if (!thread || !text) { textEl.focus(); return; }
         await postJson("/api/operator-intervention", { conversationId: thread.id, actorId: "operador-humano", text });
+        textEl.value = "";
+        await load(thread.id);
+      }
+
+      async function sendOperatorReply() {
+        const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
+        const textEl = document.getElementById("operator-text");
+        const text = textEl.value.trim();
+        if (!thread || !text) { textEl.focus(); return; }
+        if (!window.confirm("Enviar este mensaje al usuario por Instagram?")) return;
+        await postJson("/api/operator-reply", { conversationId: thread.id, actorId: "operador-humano", text });
         textEl.value = "";
         await load(thread.id);
       }

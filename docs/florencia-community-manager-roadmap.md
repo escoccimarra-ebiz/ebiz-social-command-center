@@ -51,10 +51,15 @@ Required next:
 
 Florencia can send approved Instagram replies through the platform after policy checks.
 
+MVP1.5 status:
+
+- Meta outbound adapter isolated in LXC112, not in the SCC runtime.
+- Operator-controlled Instagram send path with audit.
+- Internal notes are visually and technically separated from external replies.
+- Sender profile enrichment is attempted through Graph before forwarding to SCC.
+
 Required next:
 
-- Meta outbound adapter isolated behind server-side policy.
-- One-click approved send path with audit.
 - Message templates and refusal rules.
 - Rate limit, retry, and failure reporting.
 - Canary mode for Esteban/Florencia only.

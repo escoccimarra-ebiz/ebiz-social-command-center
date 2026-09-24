@@ -105,7 +105,14 @@ function importMessage(
   return {
     type: "message",
     account,
-    participantProfile: makeParticipantProfile(account, messageEvent.sender.id, receivedAt),
+    participantProfile: makeParticipantProfile(
+      account,
+      messageEvent.sender.id,
+      receivedAt,
+      messageEvent.sender.username,
+      messageEvent.sender.name,
+      messageEvent.sender.profile_pic
+    ),
     conversation,
     message: {
       id: `message:${account.id}:${messageEvent.message?.mid}`,
@@ -192,9 +199,11 @@ function makeParticipantProfile(
   account: SocialAccount,
   externalId: string,
   seenAt: string,
-  username?: string
+  username?: string,
+  name?: string,
+  avatarUrl?: string
 ): ParticipantProfile {
-  const displayName = username === undefined ? `Instagram ${shortId(externalId)}` : `@${username}`;
+  const displayName = username === undefined ? (name ?? `Instagram ${shortId(externalId)}`) : `@${username}`;
   return {
     id: profileId(account, externalId),
     provider: "meta",
@@ -203,6 +212,7 @@ function makeParticipantProfile(
     displayName,
     username,
     profileUrl: username === undefined ? undefined : `https://www.instagram.com/${username}/`,
+    avatarUrl,
     kind: "unknown",
     lastSeenAt: seenAt,
     createdAt: seenAt
