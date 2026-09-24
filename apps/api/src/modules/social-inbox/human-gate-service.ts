@@ -8,6 +8,7 @@ import type {
   SuggestedReply
 } from "../../../../../packages/shared/src/types/social-inbox.js";
 import { assertOutboundAllowed } from "../../policy/outbound-policy.js";
+import type { InstagramOutboundClient } from "../instagram/instagram-outbound-client.js";
 import { SocialInboxStore, stableId } from "./social-inbox-store.js";
 
 interface InboxItemRef {
@@ -58,6 +59,14 @@ interface SuggestedReplyDecisionParams {
   decidedBy: HumanGateActor;
   decision: "approve_ready_to_send" | "reject" | "escalate_esteban";
   reason: string;
+}
+
+interface OperatorReplyParams {
+  conversationId: string;
+  actorId: HumanGateActor;
+  text: string;
+  sentAt: string;
+  client: InstagramOutboundClient;
 }
 
 export function classifyAsFlorencia(
@@ -360,6 +369,44 @@ export function decideHumanGate(store: SocialInboxStore, params: HumanGateParams
   });
 
   return approval;
+}
+
+export async function sendOperatorReplyToInstagram(
+  store: SocialInboxStore,
+  params: OperatorReplyParams
+) {
+  if (params.text.trim().length === 0) {
+    throw new Error("Instagram replies require text");
+  }
+
+  const conversation = store.getConversation(params.conversationId);
+  if (conversation === undefined) {
+    throw new Error(`Conversation not found: ${params.conversationId}`);
+  }
+
+  const account = store.getAccount(conversation.accountId);
+  if (account === undefined) {
+    throw new Error(`Social account not found: ${conversation.accountId}`);
+  }
+
+  if (account.channel !== "instagram") {
+    throw new Error("Controlled external send is only available for Instagram conversations");
+  }
+
+  const result = await params.client.sendText({
+    igBusinessAccountId: account.externalId,
+    recipientId: conversation.participantExternalId,
+    text: params.text
+  });
+
+  return store.addOutboundConversationMessage({
+    conversationId: conversation.id,
+    accountId: account.id,
+    actorId: params.actorId,
+    text: params.text,
+    providerMessageId: result.providerMessageId,
+    createdAt: params.sentAt
+  });
 }
 
 function requireEsteban(actor: HumanGateActor): void {

@@ -11,7 +11,12 @@ export interface MetaWebhookEntry {
 }
 
 export interface MetaMessagingEvent {
-  sender: { id: string };
+  sender: {
+    id: string;
+    username?: string;
+    name?: string;
+    profile_pic?: string;
+  };
   recipient: { id: string };
   timestamp: number;
   read?: {

@@ -17,7 +17,12 @@ const fixture: MetaWebhookEnvelope = {
       time: 1790159000,
       messaging: [
         {
-          sender: { id: "user-1" },
+          sender: {
+            id: "user-1",
+            username: "meli.emprende",
+            name: "Meli Emprende",
+            profile_pic: "https://cdn.example.test/meli.jpg"
+          },
           recipient: { id: "17841400000000000" },
           timestamp: 1790159001000,
           message: {
@@ -36,7 +41,12 @@ const fixture: MetaWebhookEnvelope = {
           }
         },
         {
-          sender: { id: "user-1" },
+          sender: {
+            id: "user-1",
+            username: "meli.emprende",
+            name: "Meli Emprende",
+            profile_pic: "https://cdn.example.test/meli.jpg"
+          },
           recipient: { id: "17841400000000000" },
           timestamp: 1790159001800,
           message: {
@@ -98,7 +108,10 @@ describe("Meta import contract", () => {
     );
     assert.equal(snapshot.comments[0]?.text, "Me interesa");
     assert.equal(snapshot.conversations[0]?.participantProfileId, "profile:meta:instagram:17841400000000000:user-1");
-    assert.equal(snapshot.participantProfiles[0]?.displayName, "Instagram user-1");
+    assert.equal(snapshot.participantProfiles[0]?.displayName, "@meli.emprende");
+    assert.equal(snapshot.participantProfiles[0]?.username, "meli.emprende");
+    assert.equal(snapshot.participantProfiles[0]?.profileUrl, "https://www.instagram.com/meli.emprende/");
+    assert.equal(snapshot.participantProfiles[0]?.avatarUrl, "https://cdn.example.test/meli.jpg");
     assert.equal(snapshot.participantProfiles[1]?.displayName, "@prospecto");
     assert.equal(snapshot.participantProfiles[1]?.profileUrl, "https://www.instagram.com/prospecto/");
   });

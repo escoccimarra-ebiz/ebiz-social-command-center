@@ -1,6 +1,6 @@
 export type SocialProvider = "meta";
 export type SocialChannel = "instagram" | "facebook";
-export type InboxDirection = "inbound" | "internal";
+export type InboxDirection = "inbound" | "internal" | "outbound";
 export type InboxItemStatus =
   | "received"
   | "normalized"
@@ -9,7 +9,9 @@ export type InboxItemStatus =
   | "requires_esteban"
   | "approved_internal"
   | "rejected_internal"
-  | "archived";
+  | "archived"
+  | "sent"
+  | "failed";
 export type InboxItemType = "message" | "comment";
 export type HumanGateActor = "florencia-mkt" | "esteban" | "operador-humano" | "system";
 export type SensitivityLevel = "standard" | "sensitive";

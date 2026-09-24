@@ -7,8 +7,10 @@ import {
   decideSuggestedReply,
   draftAsFlorencia,
   escalateAsFlorencia,
+  sendOperatorReplyToInstagram,
   suggestReplyAsFlorencia
 } from "../apps/api/src/modules/social-inbox/human-gate-service.js";
+import type { InstagramOutboundClient } from "../apps/api/src/modules/instagram/instagram-outbound-client.js";
 import { SocialInboxStore } from "../apps/api/src/modules/social-inbox/social-inbox-store.js";
 
 describe("Florencia-MKT human gate flow", () => {
@@ -211,6 +213,33 @@ describe("Florencia-MKT human gate flow", () => {
         }),
       new Error("Sensitive social cases require Esteban approval")
     );
+  });
+
+  it("sends a controlled Instagram reply and records it as outbound history", async () => {
+    const store = seededConversationStore();
+    const client: InstagramOutboundClient = {
+      async sendText(params) {
+        assert.equal(params.igBusinessAccountId, "ig-ebiz");
+        assert.equal(params.recipientId, "lead-rosario");
+        assert.equal(params.text, "Hola! Te confirmo disponibilidad por privado.");
+        return { ok: true, providerMessageId: "ig-mid-1" };
+      }
+    };
+
+    const message = await sendOperatorReplyToInstagram(store, {
+      conversationId: "conversation-1",
+      actorId: "operador-humano",
+      text: "Hola! Te confirmo disponibilidad por privado.",
+      sentAt: "2026-09-23T13:18:00.000Z",
+      client
+    });
+    const snapshot = store.snapshot();
+
+    assert.equal(message.direction, "outbound");
+    assert.equal(message.status, "sent");
+    assert.equal(message.externalId, "ig-mid-1");
+    assert.equal(snapshot.conversations[0]?.ownerActorId, "florencia-mkt");
+    assert.equal(snapshot.auditLog.at(-1)?.action, "conversation.operator_reply_sent");
   });
 });
 
