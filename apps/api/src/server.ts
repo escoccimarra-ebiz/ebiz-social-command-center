@@ -10,6 +10,7 @@ import {
   draftAsFlorencia,
   escalateAsFlorencia,
   sendOperatorReplyToInstagram,
+  sendSuggestedReplyToInstagram,
   suggestReplyAsFlorencia
 } from "./modules/social-inbox/human-gate-service.js";
 import {
@@ -146,6 +147,19 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/suggested-reply-send") {
+    const body = (await readJson(request)) as Partial<SuggestedReplySendRequest>;
+    const result = await sendSuggestedReplyToInstagram(store, {
+      replyId: requireString(body.replyId, "replyId"),
+      actorId: requireHumanGateActor(body.actorId),
+      sentAt: new Date().toISOString(),
+      client: instagramOutboundClient
+    });
+    await repository.save(store.snapshot());
+    json(response, 201, result);
+    return;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/mkt-agent") {
     const body = (await readJson(request)) as Partial<MktAgentRequest>;
     const action = requireMktAgentAction(body.action);
@@ -270,6 +284,11 @@ interface SuggestedReplyDecisionRequest {
   decidedBy: HumanGateActor;
   decision: "approve_ready_to_send" | "reject" | "escalate_esteban";
   reason: string;
+}
+
+interface SuggestedReplySendRequest {
+  replyId: string;
+  actorId: HumanGateActor;
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {

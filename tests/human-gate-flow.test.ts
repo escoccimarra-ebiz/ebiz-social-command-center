@@ -8,6 +8,7 @@ import {
   draftAsFlorencia,
   escalateAsFlorencia,
   sendOperatorReplyToInstagram,
+  sendSuggestedReplyToInstagram,
   suggestReplyAsFlorencia
 } from "../apps/api/src/modules/social-inbox/human-gate-service.js";
 import type { InstagramOutboundClient } from "../apps/api/src/modules/instagram/instagram-outbound-client.js";
@@ -240,6 +241,47 @@ describe("Florencia-MKT human gate flow", () => {
     assert.equal(message.externalId, "ig-mid-1");
     assert.equal(snapshot.conversations[0]?.ownerActorId, "florencia-mkt");
     assert.equal(snapshot.auditLog.at(-1)?.action, "conversation.operator_reply_sent");
+  });
+
+  it("sends an approved suggested reply and marks the suggestion as sent", async () => {
+    const store = seededConversationStore();
+    const reply = suggestReplyAsFlorencia(store, {
+      conversationId: "conversation-1",
+      inboxItemType: "message",
+      inboxItemId: "message-1",
+      createdAt: "2026-09-23T13:19:00.000Z",
+      text: "Hola! Tenemos day pass disponible. Te paso info.",
+      sensitivity: "standard"
+    });
+    decideSuggestedReply(store, {
+      replyId: reply.id,
+      decidedAt: "2026-09-23T13:20:00.000Z",
+      decidedBy: "operador-humano",
+      decision: "approve_ready_to_send",
+      reason: "Respuesta estandar aprobada para envio."
+    });
+
+    const client: InstagramOutboundClient = {
+      async sendText(params) {
+        assert.equal(params.recipientId, "lead-rosario");
+        assert.equal(params.text, "Hola! Tenemos day pass disponible. Te paso info.");
+        return { ok: true, providerMessageId: "ig-mid-suggested-1" };
+      }
+    };
+
+    const result = await sendSuggestedReplyToInstagram(store, {
+      replyId: reply.id,
+      actorId: "operador-humano",
+      sentAt: "2026-09-23T13:21:00.000Z",
+      client
+    });
+    const snapshot = store.snapshot();
+
+    assert.equal(result.reply?.state, "sent");
+    assert.equal(result.reply?.externalSendBlocked, false);
+    assert.equal(result.message.direction, "outbound");
+    assert.equal(result.message.externalId, "ig-mid-suggested-1");
+    assert.equal(snapshot.auditLog.at(-1)?.action, "reply.sent_to_instagram");
   });
 });
 
