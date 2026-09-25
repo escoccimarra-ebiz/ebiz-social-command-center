@@ -18,8 +18,10 @@ if "async function getInstagramProfile" not in source:
     return null;
   }
 
-  const url = new URL(`https://graph.facebook.com/${graphApiVersion}/${userId}`);
-  url.searchParams.set("fields", "name,username,profile_pic");
+  const isInstagramLoginToken = instagramAccessToken.startsWith("IG");
+  const graphHost = isInstagramLoginToken ? "graph.instagram.com" : "graph.facebook.com";
+  const url = new URL(`https://${graphHost}/${graphApiVersion}/${userId}`);
+  url.searchParams.set("fields", isInstagramLoginToken ? "name,username" : "name,username,profile_pic");
   url.searchParams.set("access_token", instagramAccessToken);
 
   const response = await fetch(url);
