@@ -17,6 +17,11 @@ import {
   DisabledInstagramOutboundClient,
   HttpInstagramOutboundClient
 } from "./modules/instagram/instagram-outbound-client.js";
+import {
+  AutoReplyService,
+  HttpFlorenciaDecisionClient,
+  readAutoReplyConfig
+} from "./modules/auto-reply/auto-reply-service.js";
 import { SocialInboxStore, stableId } from "./modules/social-inbox/social-inbox-store.js";
 import { dashboardHtml } from "./runtime/dashboard-html.js";
 import { FileSocialInboxRepository } from "./runtime/file-social-inbox-repository.js";
@@ -38,6 +43,35 @@ const instagramOutboundClient =
   process.env.SCC_META_OUTBOUND_URL === undefined
     ? new DisabledInstagramOutboundClient()
     : new HttpInstagramOutboundClient(process.env.SCC_META_OUTBOUND_URL, process.env.SCC_INTERNAL_SECRET);
+
+const autoReplyConfig = readAutoReplyConfig(process.env, new Date());
+const autoReply = new AutoReplyService({
+  store,
+  config: autoReplyConfig,
+  outboundClient: instagramOutboundClient,
+  decisionClient: autoReplyConfig.decisionUrlConfigured
+    ? new HttpFlorenciaDecisionClient(
+        process.env.SCC_FLORENCIA_DECISION_URL as string,
+        process.env.SCC_FLORENCIA_SECRET ?? process.env.SCC_INTERNAL_SECRET
+      )
+    : undefined,
+  persist: () => repository.save(store.snapshot())
+});
+
+// Barrido periodico: reintenta fallos transitorios y cubre mensajes ingeridos mientras estaba bloqueado.
+let sweeping = false;
+setInterval(() => {
+  if (sweeping) {
+    return;
+  }
+  sweeping = true;
+  autoReply
+    .sweep()
+    .catch(() => undefined)
+    .finally(() => {
+      sweeping = false;
+    });
+}, 30000).unref();
 
 const server = createServer(async (request, response) => {
   try {
@@ -64,10 +98,38 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
 
   if (request.method === "GET" && url.pathname === "/health") {
     json(response, 200, {
-      ...getHealth(),
+      ...getHealth(autoReply.status()),
       persistence: "file",
       dataPath: join(dataDir, "social-inbox-state.json")
     });
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/auto-reply") {
+    json(response, 200, autoReply.status());
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/auto-reply-control") {
+    const body = (await readJson(request)) as { enabled?: unknown; actorId?: unknown; reason?: unknown };
+    if (typeof body.enabled !== "boolean") {
+      throw new Error("enabled must be a boolean");
+    }
+    const actorId = requireHumanGateActor(body.actorId);
+    const reason = requireString(body.reason, "reason");
+    autoReply.setEnabled(body.enabled);
+    const at = new Date().toISOString();
+    store.addAuditLog({
+      id: stableId("audit", "auto-reply-control", actorId, at),
+      actorId,
+      action: body.enabled ? "auto_reply.enabled" : "auto_reply.disabled",
+      entityType: "system",
+      entityId: "auto-reply",
+      createdAt: at,
+      metadata: { reason }
+    });
+    await repository.save(store.snapshot());
+    json(response, 200, autoReply.status());
     return;
   }
 
@@ -80,6 +142,8 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     const envelope = (await readJson(request)) as MetaWebhookEnvelope;
     const result = ingestMetaWebhook(store, envelope);
     await repository.save(store.snapshot());
+    // Fuera del request: el webhook responde 202 sin esperar a Florencia-MKT.
+    void autoReply.sweep().catch(() => undefined);
     json(response, 202, result);
     return;
   }

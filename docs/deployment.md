@@ -108,5 +108,23 @@ Expected internal target:
 
 ```bash
 SCC_INGEST_URL=http://192.168.0.211:3121/api/meta-webhook
-META_AUTO_REPLY_ENABLED=false
+META_AUTO_REPLY_ENABLED=false  # el edge LXC112 sigue sin responder; la respuesta la hace SCC
 ```
+
+## Auto-reply Florencia-MKT (LXC104)
+
+Deshabilitado por defecto. Para habilitar en LXC121 definir en el unit/EnvironmentFile:
+
+```bash
+SCC_AUTO_REPLY_ENABLED=true
+SCC_FLORENCIA_DECISION_URL=http://<LXC104>:<port>/<decision-endpoint>   # POST, responde {action: reply|escalate|skip, text?, reason?, detail?, sensitive?}
+SCC_FLORENCIA_SECRET=...            # header x-scc-internal-secret (cae a SCC_INTERNAL_SECRET)
+SCC_META_OUTBOUND_URL=...           # canal de salida Instagram (ya usado por operator-reply)
+SCC_AUTO_REPLY_CUTOFF=<ISO>         # opcional; por defecto = arranque del servicio
+SCC_AUTO_REPLY_MAX_AGE_MINUTES=60
+SCC_AUTO_REPLY_HUMAN_QUIET_MINUTES=30
+```
+
+Guardrails: solo conversaciones Instagram con owner `florencia-mkt` y estado `received|normalized`; el ultimo mensaje debe ser inbound del participante y posterior al cutoff/max-age; no responde si hubo intervencion humana posterior o reciente; claim auditado por mensaje (maximo un envio por inbound, 3 reintentos ante fallo de decision); recheck antes de enviar.
+
+Operacion: `GET /health` (bloque `autoReply`, sin secretos), `GET /api/auto-reply`, `POST /api/auto-reply-control {enabled, actorId, reason}` (kill switch en memoria, auditado).
