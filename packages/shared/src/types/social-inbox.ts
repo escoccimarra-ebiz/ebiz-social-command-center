@@ -67,6 +67,16 @@ export interface ParticipantProfile {
   createdAt: string;
 }
 
+export interface SocialAttachment {
+  id: string;
+  type: "image" | "video" | "audio" | "file" | "unknown";
+  url?: string;
+  name?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  dataUrl?: string;
+}
+
 export interface SocialMessage {
   id: string;
   accountId: string;
@@ -78,6 +88,7 @@ export interface SocialMessage {
   status: InboxItemStatus;
   receivedAt: string;
   createdAt: string;
+  attachments?: SocialAttachment[];
 }
 
 export interface SocialComment {

@@ -58,6 +58,27 @@ const fixture: MetaWebhookEnvelope = {
               }
             }
           }
+        },
+        {
+          sender: {
+            id: "user-1",
+            username: "meli.emprende",
+            name: "Meli Emprende",
+            profile_pic: "https://cdn.example.test/meli.jpg"
+          },
+          recipient: { id: "17841400000000000" },
+          timestamp: 1790159001900,
+          message: {
+            mid: "mid-image",
+            attachments: [
+              {
+                type: "image",
+                payload: {
+                  url: "https://cdn.example.test/inbound-photo.jpg"
+                }
+              }
+            ]
+          }
         }
       ],
       changes: [
@@ -80,10 +101,11 @@ describe("Meta import contract", () => {
   it("normalizes messages and comments without outbound side effects", () => {
     const events = importMetaWebhook(fixture);
 
-    assert.equal(events.length, 3);
+    assert.equal(events.length, 4);
     assert.equal(events[0]?.type, "message");
     assert.equal(events[1]?.type, "message");
-    assert.equal(events[2]?.type, "comment");
+    assert.equal(events[2]?.type, "message");
+    assert.equal(events[3]?.type, "comment");
   });
 
   it("persists imported events into the Social Inbox model", () => {
@@ -92,20 +114,23 @@ describe("Meta import contract", () => {
     const snapshot = store.snapshot();
 
     assert.deepEqual(result, {
-      importedMessages: 2,
+      importedMessages: 3,
       importedComments: 1
     });
     assert.equal(snapshot.socialAccounts.length, 1);
     assert.equal(snapshot.participantProfiles.length, 2);
     assert.equal(snapshot.conversations.length, 1);
-    assert.equal(snapshot.messages.length, 2);
+    assert.equal(snapshot.messages.length, 3);
     assert.equal(snapshot.comments.length, 1);
-    assert.equal(snapshot.auditLog.length, 3);
+    assert.equal(snapshot.auditLog.length, 4);
     assert.equal(snapshot.messages[0]?.text, "Hola, quiero info del cowork");
     assert.equal(
       snapshot.messages[1]?.text,
       "[Respuesta a historia de Instagram] Link: https://ebiz.com.ar/coworking-rosario/reservar"
     );
+    assert.equal(snapshot.messages[2]?.text, "[Adjunto de Instagram: image]");
+    assert.equal(snapshot.messages[2]?.attachments?.[0]?.type, "image");
+    assert.equal(snapshot.messages[2]?.attachments?.[0]?.url, "https://cdn.example.test/inbound-photo.jpg");
     assert.equal(snapshot.comments[0]?.text, "Me interesa");
     assert.equal(snapshot.conversations[0]?.participantProfileId, "profile:meta:instagram:17841400000000000:user-1");
     assert.equal(snapshot.participantProfiles[0]?.displayName, "@meli.emprende");

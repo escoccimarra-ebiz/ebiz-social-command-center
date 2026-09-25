@@ -8,6 +8,7 @@ import type {
   Conversation,
   ParticipantProfile,
   SocialAccount,
+  SocialAttachment,
   SocialComment,
   SocialMessage
 } from "../../../shared/src/types/social-inbox.js";
@@ -124,7 +125,8 @@ function importMessage(
       authorExternalId: messageEvent.sender.id,
       status: "received",
       receivedAt,
-      createdAt: receivedAt
+      createdAt: receivedAt,
+      attachments: mapAttachments(messageEvent)
     }
   };
 }
@@ -193,6 +195,27 @@ function summarizeMessageEvent(messageEvent: MetaMessagingEvent): string {
   }
 
   return "[Evento de Instagram sin texto visible]";
+}
+
+function mapAttachments(messageEvent: MetaMessagingEvent): SocialAttachment[] | undefined {
+  const attachments = messageEvent.message?.attachments ?? [];
+  if (attachments.length === 0) {
+    return undefined;
+  }
+
+  return attachments.map((attachment, index) => ({
+    id: `${messageEvent.message?.mid ?? "attachment"}:${index}`,
+    type: normalizeAttachmentType(attachment.type),
+    url: attachment.payload?.url
+  }));
+}
+
+function normalizeAttachmentType(type: string): SocialAttachment["type"] {
+  if (type === "image" || type === "video" || type === "audio" || type === "file") {
+    return type;
+  }
+
+  return "unknown";
 }
 
 function makeParticipantProfile(

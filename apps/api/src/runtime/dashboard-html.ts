@@ -169,6 +169,11 @@ export const dashboardHtml = String.raw`<!doctype html>
         gap: 16px;
       }
       .card { min-height: 0; overflow: hidden; display: grid; grid-template-rows: auto 1fr; }
+      .conversation-card {
+        align-self: start;
+        max-height: calc(100vh - 260px);
+        grid-template-rows: auto minmax(0, auto) auto;
+      }
       .card-head {
         padding: 14px 16px;
         border-bottom: 1px solid var(--line);
@@ -243,6 +248,9 @@ export const dashboardHtml = String.raw`<!doctype html>
         gap: 12px;
         background: #f8fafc;
       }
+      .conversation-card .thread {
+        max-height: calc(100vh - 410px);
+      }
       .message {
         max-width: 76%;
         border: 1px solid var(--line);
@@ -256,6 +264,26 @@ export const dashboardHtml = String.raw`<!doctype html>
       .message p { white-space: pre-wrap; line-height: 1.45; }
       .message small { display: block; margin-top: 7px; color: var(--muted); }
       .message.outbound small { color: #cbd5e1; }
+      .attachments { display: grid; gap: 8px; margin-top: 10px; }
+      .attachment {
+        display: grid;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px;
+        background: #fbfcfe;
+      }
+      .message.outbound .attachment { background: #111827; border-color: #374151; }
+      .attachment img {
+        display: block;
+        max-width: min(360px, 100%);
+        max-height: 280px;
+        border-radius: 6px;
+        object-fit: contain;
+        background: var(--white);
+      }
+      .attachment a { color: var(--blue); font-weight: 700; overflow-wrap: anywhere; }
+      .message.outbound .attachment a { color: #93c5fd; }
       .composer {
         padding: 14px;
         border-top: 1px solid var(--line);
@@ -263,6 +291,24 @@ export const dashboardHtml = String.raw`<!doctype html>
         display: grid;
         grid-template-columns: 1fr auto;
         gap: 10px;
+      }
+      .composer-main { display: grid; gap: 8px; }
+      .attachment-input {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .attachment-input input { width: auto; min-height: 0; padding: 0; border: 0; }
+      .attachment-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+      .attachment-chip {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: #f8fafc;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
       }
 
       .side-scroll { padding: 16px; display: grid; align-content: start; gap: 16px; }
@@ -354,11 +400,17 @@ export const dashboardHtml = String.raw`<!doctype html>
             <div class="inbox-list" id="threads"></div>
           </article>
 
-          <article class="card">
+          <article class="card conversation-card">
             <div id="conversation-head" class="conversation-head"></div>
             <div class="thread" id="thread"></div>
             <div class="composer">
-              <textarea id="operator-text" placeholder="Respuesta directa al usuario/prospecto por Instagram"></textarea>
+              <div class="composer-main">
+                <textarea id="operator-text" placeholder="Respuesta directa al usuario/prospecto por Instagram"></textarea>
+                <div class="attachment-input">
+                  <input id="operator-attachments" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
+                  <div class="attachment-chips" id="operator-attachment-list"></div>
+                </div>
+              </div>
               <button class="dark" id="operator-reply">Enviar al usuario</button>
             </div>
           </article>
@@ -425,6 +477,8 @@ export const dashboardHtml = String.raw`<!doctype html>
       const metricsEl = document.getElementById("metrics");
       const statusEl = document.getElementById("runtime-status");
       const searchEl = document.getElementById("search");
+      const operatorAttachmentsEl = document.getElementById("operator-attachments");
+      const operatorAttachmentListEl = document.getElementById("operator-attachment-list");
 
       document.getElementById("refresh").addEventListener("click", () => load());
       document.getElementById("seed").addEventListener("click", async () => {
@@ -434,6 +488,7 @@ export const dashboardHtml = String.raw`<!doctype html>
       document.getElementById("operator-reply").addEventListener("click", sendOperatorReply);
       document.getElementById("operator-note").addEventListener("click", recordOperatorIntervention);
       document.getElementById("suggest-reply").addEventListener("click", createSuggestedReply);
+      operatorAttachmentsEl.addEventListener("change", renderSelectedAttachments);
       searchEl.addEventListener("input", renderAll);
       for (const button of document.querySelectorAll("[data-agent-action]")) {
         button.addEventListener("click", () => runMktAgent(button.dataset.agentAction));
@@ -579,17 +634,34 @@ export const dashboardHtml = String.raw`<!doctype html>
               at: message.createdAt,
               mode: message.direction,
               who: message.direction === "inbound" ? (thread.profile?.displayName ?? "Prospecto") : message.authorExternalId,
-              text: message.text || "(evento sin texto: posible adjunto/reaccion)"
+              text: message.text || "(evento sin texto: posible adjunto/reaccion)",
+              attachments: message.attachments ?? []
             });
           }
         } else {
-          entries.push({ at: thread.item.createdAt, mode: "inbound", who: thread.title, text: thread.item.text || "(comentario sin texto)" });
+          entries.push({ at: thread.item.createdAt, mode: "inbound", who: thread.title, text: thread.item.text || "(comentario sin texto)", attachments: [] });
         }
         if (entries.length === 0) return '<div class="empty">Sin mensajes</div>';
         return entries.sort((a, b) => a.at.localeCompare(b.at)).map((entry) =>
           '<article class="message ' + escapeHtml(entry.mode === "outbound" ? "outbound" : entry.mode === "internal" ? "internal" : "") + '"><strong>' +
-          escapeHtml(entry.who) + '</strong><p>' + escapeHtml(entry.text) + '</p><small>' + escapeHtml(entry.at) + '</small></article>'
+          escapeHtml(entry.who) + '</strong><p>' + escapeHtml(entry.text) + '</p>' + renderAttachments(entry.attachments) +
+          '<small>' + escapeHtml(entry.at) + '</small></article>'
         ).join("");
+      }
+
+      function renderAttachments(attachments) {
+        if (!attachments || attachments.length === 0) return "";
+        return '<div class="attachments">' + attachments.map((attachment) => {
+          const href = attachment.url || attachment.dataUrl || "";
+          const label = attachment.name || attachment.type || "adjunto";
+          const media = attachment.type === "image" && href
+            ? '<img src="' + escapeAttribute(href) + '" alt="' + escapeAttribute(label) + '" loading="lazy" />'
+            : "";
+          const link = href
+            ? '<a href="' + escapeAttribute(href) + '" target="_blank" rel="noreferrer">Abrir ' + escapeHtml(label) + '</a>'
+            : '<span class="muted">' + escapeHtml(label) + '</span>';
+          return '<div class="attachment">' + media + link + '<span class="muted">' + escapeHtml(attachment.mimeType || attachment.type || "archivo") + '</span></div>';
+        }).join("") + '</div>';
       }
 
       function renderProfile(thread) {
@@ -647,7 +719,6 @@ export const dashboardHtml = String.raw`<!doctype html>
       suggestedRepliesEl.addEventListener("click", async (event) => {
         const button = event.target.closest("[data-send-reply-id]");
         if (!button) return;
-        if (!window.confirm("Enviar esta respuesta sugerida al usuario por Instagram?")) return;
         await postJson("/api/suggested-reply-send", {
           replyId: button.dataset.sendReplyId,
           actorId: "operador-humano"
@@ -669,11 +740,35 @@ export const dashboardHtml = String.raw`<!doctype html>
         const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
         const textEl = document.getElementById("operator-text");
         const text = textEl.value.trim();
-        if (!thread || !text) { textEl.focus(); return; }
-        if (!window.confirm("Enviar este mensaje al usuario/prospecto por Instagram?")) return;
-        await postJson("/api/operator-reply", { conversationId: thread.id, actorId: "operador-humano", text });
+        const attachments = await readSelectedAttachments();
+        if (!thread || (!text && attachments.length === 0)) { textEl.focus(); return; }
+        await postJson("/api/operator-reply", { conversationId: thread.id, actorId: "operador-humano", text, attachments });
         textEl.value = "";
+        operatorAttachmentsEl.value = "";
+        renderSelectedAttachments();
         await load(thread.id);
+      }
+
+      function renderSelectedAttachments() {
+        const files = Array.from(operatorAttachmentsEl.files ?? []);
+        operatorAttachmentListEl.innerHTML = files.map((file) =>
+          '<span class="attachment-chip">' + escapeHtml(file.name) + '</span>'
+        ).join("");
+      }
+
+      async function readSelectedAttachments() {
+        const files = Array.from(operatorAttachmentsEl.files ?? []);
+        return Promise.all(files.map((file) => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.addEventListener("load", () => resolve({
+            name: file.name,
+            mimeType: file.type || "application/octet-stream",
+            sizeBytes: file.size,
+            dataUrl: String(reader.result)
+          }));
+          reader.addEventListener("error", () => reject(reader.error));
+          reader.readAsDataURL(file);
+        })));
       }
 
       async function runMktAgent(action) {
@@ -762,6 +857,9 @@ export const dashboardHtml = String.raw`<!doctype html>
       function badge(text, tone = "") { return '<span class="badge ' + tone + '">' + escapeHtml(text) + '</span>'; }
       function escapeHtml(value) {
         return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+      }
+      function escapeAttribute(value) {
+        return escapeHtml(value).replace(/\x60/g, "&#96;");
       }
       load().catch((error) => {
         statusEl.textContent = "Error";

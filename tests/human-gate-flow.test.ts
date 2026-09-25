@@ -243,6 +243,39 @@ describe("Florencia-MKT human gate flow", () => {
     assert.equal(snapshot.auditLog.at(-1)?.action, "conversation.operator_reply_sent");
   });
 
+  it("sends operator attachments through the outbound adapter and records them in history", async () => {
+    const store = seededConversationStore();
+    const client: InstagramOutboundClient = {
+      async sendText(params) {
+        assert.equal(params.text, "Te paso el archivo.");
+        assert.equal(params.attachments?.[0]?.name, "foto.jpg");
+        assert.equal(params.attachments?.[0]?.mimeType, "image/jpeg");
+        return { ok: true, providerMessageId: "ig-mid-attachment" };
+      }
+    };
+
+    const message = await sendOperatorReplyToInstagram(store, {
+      conversationId: "conversation-1",
+      actorId: "operador-humano",
+      text: "Te paso el archivo.",
+      sentAt: "2026-09-23T13:18:30.000Z",
+      client,
+      attachments: [
+        {
+          id: "attachment-1",
+          type: "image",
+          name: "foto.jpg",
+          mimeType: "image/jpeg",
+          sizeBytes: 12,
+          dataUrl: "data:image/jpeg;base64,abcd"
+        }
+      ]
+    });
+
+    assert.equal(message.attachments?.[0]?.name, "foto.jpg");
+    assert.equal(store.snapshot().messages.at(-1)?.attachments?.[0]?.dataUrl, "data:image/jpeg;base64,abcd");
+  });
+
   it("sends an approved suggested reply and marks the suggestion as sent", async () => {
     const store = seededConversationStore();
     const reply = suggestReplyAsFlorencia(store, {

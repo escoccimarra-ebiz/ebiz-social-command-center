@@ -5,6 +5,7 @@ import type {
   HumanGateActor,
   InboxItemType,
   SensitivityLevel,
+  SocialAttachment,
   SuggestedReply
 } from "../../../../../packages/shared/src/types/social-inbox.js";
 import { assertOutboundAllowed } from "../../policy/outbound-policy.js";
@@ -67,6 +68,7 @@ interface OperatorReplyParams {
   text: string;
   sentAt: string;
   client: InstagramOutboundClient;
+  attachments?: SocialAttachment[];
 }
 
 interface SuggestedReplySendParams {
@@ -382,8 +384,8 @@ export async function sendOperatorReplyToInstagram(
   store: SocialInboxStore,
   params: OperatorReplyParams
 ) {
-  if (params.text.trim().length === 0) {
-    throw new Error("Instagram replies require text");
+  if (params.text.trim().length === 0 && (params.attachments ?? []).length === 0) {
+    throw new Error("Instagram replies require text or attachments");
   }
 
   const conversation = store.getConversation(params.conversationId);
@@ -403,7 +405,14 @@ export async function sendOperatorReplyToInstagram(
   const result = await params.client.sendText({
     igBusinessAccountId: account.externalId,
     recipientId: conversation.participantExternalId,
-    text: params.text
+    text: params.text,
+    attachments: params.attachments?.map((attachment) => ({
+      type: attachment.type,
+      name: attachment.name ?? attachment.id,
+      mimeType: attachment.mimeType ?? "application/octet-stream",
+      dataUrl: attachment.dataUrl ?? "",
+      sizeBytes: attachment.sizeBytes ?? 0
+    }))
   });
 
   return store.addOutboundConversationMessage({
@@ -412,7 +421,8 @@ export async function sendOperatorReplyToInstagram(
     actorId: params.actorId,
     text: params.text,
     providerMessageId: result.providerMessageId,
-    createdAt: params.sentAt
+    createdAt: params.sentAt,
+    attachments: params.attachments
   });
 }
 

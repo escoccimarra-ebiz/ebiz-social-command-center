@@ -22,10 +22,11 @@ import { dashboardHtml } from "./runtime/dashboard-html.js";
 import { FileSocialInboxRepository } from "./runtime/file-social-inbox-repository.js";
 import type { MetaWebhookEnvelope } from "../../../packages/shared/src/types/meta-webhook.js";
 import type {
+  EscalationReason,
   HumanGateActor,
   InboxItemType,
-  EscalationReason,
-  SensitivityLevel
+  SensitivityLevel,
+  SocialAttachment
 } from "../../../packages/shared/src/types/social-inbox.js";
 
 const port = Number.parseInt(process.env.PORT ?? "3121", 10);
@@ -135,12 +136,14 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
 
   if (request.method === "POST" && url.pathname === "/api/operator-reply") {
     const body = (await readJson(request)) as Partial<OperatorInterventionRequest>;
+    const attachments = parseAttachments(body.attachments);
     const message = await sendOperatorReplyToInstagram(store, {
       conversationId: requireString(body.conversationId, "conversationId"),
       actorId: requireHumanGateActor(body.actorId),
-      text: requireString(body.text, "text"),
+      text: optionalString(body.text),
       sentAt: new Date().toISOString(),
-      client: instagramOutboundClient
+      client: instagramOutboundClient,
+      attachments
     });
     await repository.save(store.snapshot());
     json(response, 201, message);
@@ -260,6 +263,7 @@ interface OperatorInterventionRequest {
   conversationId: string;
   actorId: HumanGateActor;
   text: string;
+  attachments?: unknown;
 }
 
 interface MktAgentRequest {
@@ -428,6 +432,57 @@ function requireString(value: unknown, fieldName: string): string {
   }
 
   return value;
+}
+
+function optionalString(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (typeof value !== "string") {
+    throw new Error("text must be a string");
+  }
+
+  return value.trim();
+}
+
+function parseAttachments(value: unknown): SocialAttachment[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error("attachments must be an array");
+  }
+
+  return value.map((item, index) => {
+    if (typeof item !== "object" || item === null) {
+      throw new Error("attachment must be an object");
+    }
+    const attachment = item as Record<string, unknown>;
+    const name = typeof attachment.name === "string" ? attachment.name : `adjunto-${index + 1}`;
+    const mimeType = typeof attachment.mimeType === "string" ? attachment.mimeType : "application/octet-stream";
+    const dataUrl = typeof attachment.dataUrl === "string" ? attachment.dataUrl : "";
+    if (!dataUrl.startsWith("data:")) {
+      throw new Error("attachment dataUrl is required");
+    }
+
+    return {
+      id: stableId("attachment", name, String(index)),
+      type: attachmentTypeFromMime(mimeType),
+      name,
+      mimeType,
+      sizeBytes: typeof attachment.sizeBytes === "number" ? attachment.sizeBytes : undefined,
+      dataUrl
+    };
+  });
+}
+
+function attachmentTypeFromMime(mimeType: string): SocialAttachment["type"] {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+  return "file";
 }
 
 function requireInboxItemType(value: unknown): InboxItemType {
