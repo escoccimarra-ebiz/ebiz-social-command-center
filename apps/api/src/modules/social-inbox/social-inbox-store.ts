@@ -186,9 +186,8 @@ export class SocialInboxStore {
       }
     });
 
+    // Una nota interna deja rastro pero no cambia el dueño: el traspaso es explicito (take_control).
     this.updateConversation(params.conversationId, {
-      status: "pending_human_approval",
-      ownerActorId: params.actorId,
       lastHumanInterventionAt: params.createdAt,
       updatedAt: params.createdAt
     });

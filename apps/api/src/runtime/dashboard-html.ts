@@ -289,10 +289,13 @@ export const dashboardHtml = String.raw`<!doctype html>
         border-top: 1px solid var(--line);
         background: var(--white);
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
+        align-items: start;
       }
-      .composer-main { display: grid; gap: 8px; }
+      .composer-main { display: grid; gap: 8px; min-width: 0; }
+      .composer > button { white-space: nowrap; padding: 0 16px; min-height: 42px; }
+      .attachment-input input { max-width: 100%; min-width: 0; }
       .attachment-input {
         display: flex;
         align-items: center;
@@ -335,6 +338,39 @@ export const dashboardHtml = String.raw`<!doctype html>
       }
       .audit-row strong { display: block; font-size: 12px; }
       .empty { color: var(--muted); text-align: center; padding: 28px; }
+      .nav-item { cursor: pointer; user-select: none; }
+      .nav-item:hover { background: #2a3444; }
+      .nav-item.active:hover { background: #143b66; }
+      .ownership {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid #b7d8ff;
+        border-radius: 7px;
+        background: var(--blue-soft);
+      }
+      .ownership.human { border-color: #efaaa3; background: #fff5f4; }
+      .ownership strong { font-size: 14px; }
+      .flow { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .hint { color: var(--muted); font-size: 12px; line-height: 1.4; }
+      button:disabled { opacity: .55; cursor: progress; }
+      .toast {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        max-width: 420px;
+        padding: 12px 16px;
+        border-radius: 7px;
+        background: var(--nav);
+        color: var(--white);
+        font-size: 13px;
+        font-weight: 650;
+        box-shadow: 0 8px 24px rgba(0,0,0,.25);
+        z-index: 10;
+      }
+      .toast.error { background: var(--danger); }
+      .toast.ok { background: var(--ok); }
+      .toast[hidden] { display: none; }
 
       @media (max-width: 1200px) {
         .workspace { grid-template-columns: 320px minmax(0, 1fr); }
@@ -345,7 +381,12 @@ export const dashboardHtml = String.raw`<!doctype html>
         .app { grid-template-columns: 1fr; }
         .nav { display: none; }
         .workspace, .metrics { grid-template-columns: 1fr; }
-        .composer { grid-template-columns: 1fr; }
+        .composer { grid-template-columns: minmax(0, 1fr); }
+        .composer > button { width: 100%; }
+        .conversation-card { max-height: none; }
+        .conversation-card .thread { max-height: 60vh; }
+        .title-row, .topbar { flex-wrap: wrap; }
+        .search { width: 100%; }
       }
     </style>
   </head>
@@ -355,19 +396,18 @@ export const dashboardHtml = String.raw`<!doctype html>
         <div class="brand"><div class="brand-mark">e</div><div>eBiz</div></div>
         <div class="nav-section">
           <div class="nav-label">Overview</div>
-          <div class="nav-item active">Dashboard</div>
+          <div class="nav-item active" role="button" tabindex="0" data-view="all">Dashboard</div>
         </div>
         <div class="nav-section">
-          <div class="nav-label">Work</div>
-          <div class="nav-item active">Social Inbox</div>
-          <div class="nav-item">Aprobaciones</div>
-          <div class="nav-item">Actividad</div>
+          <div class="nav-label">Supervision</div>
+          <div class="nav-item" role="button" tabindex="0" data-view="all">Social Inbox</div>
+          <div class="nav-item" role="button" tabindex="0" data-view="approvals">Requieren humano</div>
+          <div class="nav-item" role="button" tabindex="0" data-view="activity">Actividad reciente</div>
         </div>
         <div class="nav-section">
           <div class="nav-label">AI Workforce</div>
-          <div class="nav-item">Florencia-MKT</div>
-          <div class="nav-item">Operadores</div>
-          <div class="nav-item">Reglas</div>
+          <div class="nav-item" role="button" tabindex="0" data-view="florencia">Florencia-MKT</div>
+          <div class="nav-item" role="button" tabindex="0" data-view="humans">Intervenidas por humanos</div>
         </div>
       </aside>
 
@@ -384,7 +424,7 @@ export const dashboardHtml = String.raw`<!doctype html>
           <div class="title-row">
             <div>
               <h1>Social Command Center</h1>
-              <p class="subtitle">Inbox operativo para Florencia-MKT, operadores humanos y escalamiento ejecutivo.</p>
+              <p class="subtitle">Florencia-MKT (agente LXC104) atiende por defecto todas las conversaciones de Instagram. Aca supervisas, auditas e intervenis.</p>
             </div>
             <div class="actions">
               <button class="primary" id="refresh">Actualizar</button>
@@ -396,7 +436,7 @@ export const dashboardHtml = String.raw`<!doctype html>
 
         <section class="workspace">
           <article class="card">
-            <div class="card-head"><h2>Inbox</h2><span class="muted" id="inbox-count"></span></div>
+            <div class="card-head"><h2 id="inbox-title">Conversaciones</h2><span class="muted" id="inbox-count"></span></div>
             <div class="inbox-list" id="threads"></div>
           </article>
 
@@ -405,27 +445,29 @@ export const dashboardHtml = String.raw`<!doctype html>
             <div class="thread" id="thread"></div>
             <div class="composer">
               <div class="composer-main">
-                <textarea id="operator-text" placeholder="Respuesta directa al usuario/prospecto por Instagram"></textarea>
+                <textarea id="operator-text" placeholder="Intervencion humana: respuesta directa al usuario por Instagram (reemplaza a Florencia en este mensaje)"></textarea>
                 <div class="attachment-input">
                   <input id="operator-attachments" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
                   <div class="attachment-chips" id="operator-attachment-list"></div>
                 </div>
               </div>
-              <button class="dark" id="operator-reply">Enviar al usuario</button>
+              <button class="dark" id="operator-reply">Responder al usuario</button>
             </div>
           </article>
 
           <aside class="card">
-            <div class="card-head"><h2>Operacion</h2></div>
+            <div class="card-head"><h2>Supervision y control</h2></div>
             <div class="side-scroll">
               <section class="profile-card" id="profile"></section>
+              <section class="ownership" id="ownership"></section>
               <section class="form-block">
-                <h3>Florencia-MKT</h3>
-                <textarea id="mkt-output" placeholder="Trabajo interno de Florencia: clasificacion, borrador o motivo para pedir ayuda"></textarea>
+                <h3>1. Florencia-MKT (agente)</h3>
+                <p class="hint">Registra el trabajo de Florencia sobre el ultimo mensaje entrante. SCC no genera texto con IA: lo que escribas aca queda como su salida en la bitacora.</p>
+                <textarea id="mkt-output" placeholder="Salida de Florencia: clasificacion, borrador o motivo para pedir ayuda"></textarea>
                 <select id="escalation-reason">
                   <option value="ambiguous">Informacion ambigua</option>
                   <option value="missing_info">Informacion ausente</option>
-                  <option value="sensitive">Caso sensible</option>
+                  <option value="sensitive">Caso sensible (pasa a Esteban)</option>
                 </select>
                 <div class="actions">
                   <button data-agent-action="classify">Clasificar</button>
@@ -434,8 +476,9 @@ export const dashboardHtml = String.raw`<!doctype html>
                 </div>
               </section>
               <section class="form-block">
-                <h3>Operacion humana</h3>
-                <textarea id="control-reason" placeholder="Nota interna: motivo de asignacion, decision o cierre. Esto no se envia al usuario."></textarea>
+                <h3>2. Intervencion humana</h3>
+                <p class="hint">Cambia quien atiende la conversacion. El motivo es opcional y queda en la bitacora; la nota interna nunca se envia al usuario.</p>
+                <textarea id="control-reason" placeholder="Motivo / nota interna (no se envia al usuario)"></textarea>
                 <div class="actions">
                   <button class="dark" data-control-action="take_control">Asignar a humano</button>
                   <button data-control-action="return_to_agent">Asignar a Florencia</button>
@@ -444,7 +487,7 @@ export const dashboardHtml = String.raw`<!doctype html>
                 <button id="operator-note">Guardar nota interna</button>
               </section>
               <section class="form-block">
-                <h3>Respuesta sugerida</h3>
+                <h3>3. Respuesta sugerida</h3>
                 <textarea id="suggested-reply-text" placeholder="Respuesta que Florencia propone para enviar al usuario por Instagram"></textarea>
                 <select id="suggested-reply-sensitivity">
                   <option value="standard">Caso estandar</option>
@@ -456,7 +499,7 @@ export const dashboardHtml = String.raw`<!doctype html>
                 <div class="audit" id="suggested-replies"></div>
               </section>
               <section class="form-block">
-                <h3>Bitacora</h3>
+                <h3>Bitacora de auditoria</h3>
                 <div class="audit" id="audit"></div>
               </section>
             </div>
@@ -465,8 +508,10 @@ export const dashboardHtml = String.raw`<!doctype html>
       </main>
     </div>
 
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
     <script>
       let state = null;
+      let currentView = "all";
       let selectedThreadId = null;
       const threadsEl = document.getElementById("threads");
       const threadEl = document.getElementById("thread");
@@ -480,21 +525,69 @@ export const dashboardHtml = String.raw`<!doctype html>
       const operatorAttachmentsEl = document.getElementById("operator-attachments");
       const operatorAttachmentListEl = document.getElementById("operator-attachment-list");
 
-      document.getElementById("refresh").addEventListener("click", () => load());
-      document.getElementById("seed").addEventListener("click", async () => {
-        await fetch("/api/demo-seed", { method: "POST" });
+      const toastEl = document.getElementById("toast");
+      let toastTimer = null;
+      const OWNER_LABELS = { "florencia-mkt": "Florencia-MKT", "operador-humano": "Operador humano", esteban: "Esteban", system: "Sistema" };
+      const VIEW_TITLES = { all: "Conversaciones", approvals: "Requieren humano", activity: "Actividad reciente", florencia: "Atendidas por Florencia-MKT", humans: "Intervenidas por humanos" };
+
+      function toast(message, tone) {
+        toastEl.textContent = message;
+        toastEl.className = "toast " + (tone || "");
+        toastEl.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { toastEl.hidden = true; }, tone === "error" ? 7000 : 3500);
+      }
+
+      // Envuelve cada accion: deshabilita el boton mientras corre y muestra exito o error visible.
+      function guarded(button, successMessage, fn) {
+        return async () => {
+          if (button.disabled) return;
+          button.disabled = true;
+          try {
+            const done = await fn();
+            if (done !== false) toast(successMessage, "ok");
+          } catch (error) {
+            toast("No se pudo completar: " + (error && error.message ? error.message : error), "error");
+          } finally {
+            button.disabled = false;
+          }
+        };
+      }
+      function bind(button, successMessage, fn) { button.addEventListener("click", guarded(button, successMessage, fn)); }
+
+      function needConversation() {
+        const thread = getThreads().find((item) => item.id === selectedThreadId);
+        if (!thread) { toast("Elegi una conversacion primero.", "error"); return null; }
+        if (thread.kind !== "conversation") { toast("Esta accion aplica a conversaciones de mensajes directos, no a comentarios.", "error"); return null; }
+        return thread;
+      }
+
+      bind(document.getElementById("refresh"), "Actualizado.", () => load());
+      bind(document.getElementById("seed"), "Datos demo cargados.", async () => {
+        await postJson("/api/demo-seed", {});
         await load();
       });
-      document.getElementById("operator-reply").addEventListener("click", sendOperatorReply);
-      document.getElementById("operator-note").addEventListener("click", recordOperatorIntervention);
-      document.getElementById("suggest-reply").addEventListener("click", createSuggestedReply);
+      bind(document.getElementById("operator-reply"), "Respuesta enviada al usuario.", sendOperatorReply);
+      bind(document.getElementById("operator-note"), "Nota interna guardada.", recordOperatorIntervention);
+      bind(document.getElementById("suggest-reply"), "Sugerencia creada.", createSuggestedReply);
+      for (const item of document.querySelectorAll("[data-view]")) {
+        const activate = () => {
+          currentView = item.dataset.view;
+          for (const other of document.querySelectorAll("[data-view]")) other.classList.toggle("active", other === item);
+          if (state) renderAll();
+        };
+        item.addEventListener("click", activate);
+        item.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(); } });
+      }
       operatorAttachmentsEl.addEventListener("change", renderSelectedAttachments);
       searchEl.addEventListener("input", renderAll);
+      const AGENT_OK = { classify: "Clasificacion registrada.", draft: "Borrador registrado.", escalate: "Pedido de ayuda registrado: la conversacion paso a un humano." };
+      const CONTROL_OK = { take_control: "Conversacion asignada a humano.", return_to_agent: "Conversacion devuelta a Florencia-MKT.", resolve: "Caso cerrado." };
       for (const button of document.querySelectorAll("[data-agent-action]")) {
-        button.addEventListener("click", () => runMktAgent(button.dataset.agentAction));
+        bind(button, AGENT_OK[button.dataset.agentAction], () => runMktAgent(button.dataset.agentAction));
       }
       for (const button of document.querySelectorAll("[data-control-action]")) {
-        button.addEventListener("click", () => changeConversationControl(button.dataset.controlAction));
+        bind(button, CONTROL_OK[button.dataset.controlAction], () => changeConversationControl(button.dataset.controlAction));
       }
 
       async function load(preferredId) {
@@ -504,6 +597,7 @@ export const dashboardHtml = String.raw`<!doctype html>
         const threads = filteredThreads();
         selectedThreadId = preferredId ?? selectedThreadId ?? threads[0]?.id ?? null;
         renderAll();
+        return true;
       }
 
       function renderAll() {
@@ -551,10 +645,20 @@ export const dashboardHtml = String.raw`<!doctype html>
         return [...conversations, ...comments].sort((a, b) => b.at.localeCompare(a.at));
       }
 
+      function inView(thread) {
+        const human = thread.owner === "operador-humano" || thread.owner === "esteban";
+        if (currentView === "approvals") return human || thread.status === "pending_human_approval" || thread.status === "requires_esteban";
+        if (currentView === "humans") return human;
+        if (currentView === "florencia") return thread.owner === "florencia-mkt";
+        if (currentView === "activity") return Boolean(thread.conversation?.lastAgentActionAt || thread.conversation?.lastHumanInterventionAt);
+        return true;
+      }
+
       function filteredThreads() {
         const q = searchEl.value.trim().toLowerCase();
-        if (!q) return getThreads();
-        return getThreads().filter((thread) =>
+        const inScope = getThreads().filter(inView);
+        if (!q) return inScope;
+        return inScope.filter((thread) =>
           [thread.title, thread.preview, thread.profile?.username, thread.profile?.externalId]
             .filter(Boolean)
             .some((value) => String(value).toLowerCase().includes(q))
@@ -581,9 +685,10 @@ export const dashboardHtml = String.raw`<!doctype html>
       }
 
       function renderThreads(threads) {
+        document.getElementById("inbox-title").textContent = VIEW_TITLES[currentView] ?? "Conversaciones";
         document.getElementById("inbox-count").textContent = threads.length + " items";
         if (threads.length === 0) {
-          threadsEl.innerHTML = '<div class="empty">Sin conversaciones</div>';
+          threadsEl.innerHTML = '<div class="empty">Sin conversaciones en esta vista</div>';
           return;
         }
         threadsEl.innerHTML = "";
@@ -596,7 +701,7 @@ export const dashboardHtml = String.raw`<!doctype html>
             escapeHtml(thread.profile?.username ? "instagram.com/" + thread.profile.username : thread.profile?.externalId ?? thread.kind) +
             '</span></div></div><div class="preview">' +
             escapeHtml(thread.preview) + '</div><div class="badges">' +
-            badge(thread.status, statusTone(thread.status)) + badge(thread.owner, thread.owner === "esteban" ? "danger" : "blue") +
+            badge(thread.status, statusTone(thread.status)) + badge(ownerLabel(thread.owner), ownerTone(thread.owner)) +
             '</div>';
           button.addEventListener("click", () => { selectedThreadId = thread.id; renderAll(); });
           threadsEl.appendChild(button);
@@ -609,6 +714,7 @@ export const dashboardHtml = String.raw`<!doctype html>
           headEl.innerHTML = '<div class="empty">Sin seleccion</div>';
           threadEl.innerHTML = "";
           profileEl.innerHTML = "";
+          document.getElementById("ownership").innerHTML = "";
           suggestedRepliesEl.innerHTML = "";
           auditEl.innerHTML = "";
           return;
@@ -618,11 +724,14 @@ export const dashboardHtml = String.raw`<!doctype html>
           '<div class="conversation-title"><div class="person-line"><div class="avatar">' + initials(thread.title) +
           '</div><div><h2>' + escapeHtml(thread.title) + '</h2><div class="muted">' +
           escapeHtml(profileLabel(profile)) + '</div></div></div><div class="badges">' +
-          badge(thread.status, statusTone(thread.status)) + badge("dueno: " + thread.owner, thread.owner === "esteban" ? "danger" : "blue") +
+          badge(thread.status, statusTone(thread.status)) + badge("dueno: " + ownerLabel(thread.owner), ownerTone(thread.owner)) +
           (thread.conversation?.escalationReason ? badge(thread.conversation.escalationReason, "warn") : "") + '</div></div>';
         threadEl.innerHTML = conversationMessages(thread);
         threadEl.scrollTop = threadEl.scrollHeight;
         profileEl.innerHTML = renderProfile(thread);
+        const ownershipEl = document.getElementById("ownership");
+        ownershipEl.className = "ownership" + (isHumanOwner(thread.owner) ? " human" : "");
+        ownershipEl.innerHTML = renderOwnership(thread);
         suggestedRepliesEl.innerHTML = renderSuggestedReplies(thread);
         auditEl.innerHTML = renderAudit(thread);
       }
@@ -669,6 +778,23 @@ export const dashboardHtml = String.raw`<!doctype html>
         }).join("") + '</div>';
       }
 
+      function ownerLabel(owner) { return OWNER_LABELS[owner] ?? owner; }
+      function isHumanOwner(owner) { return owner === "operador-humano" || owner === "esteban"; }
+      function ownerTone(owner) { return owner === "esteban" ? "danger" : isHumanOwner(owner) ? "warn" : "blue"; }
+
+      function renderOwnership(thread) {
+        const human = isHumanOwner(thread.owner);
+        const escalation = thread.conversation?.escalationReason;
+        const head = human
+          ? '<strong>Atiende: ' + escapeHtml(ownerLabel(thread.owner)) + '</strong><p class="hint">Un humano tomo esta conversacion' +
+            (escalation ? ' (motivo: ' + escapeHtml(escalation) + ')' : '') + '. Florencia-MKT queda en pausa hasta que se la reasigne.</p>'
+          : '<strong>Atiende: Florencia-MKT (por defecto)</strong><p class="hint">Florencia-MKT (agente LXC104) es la duena de toda conversacion de Instagram. Solo intervenis vos si hace falta.</p>';
+        return head + '<div class="badges">' + badge("estado: " + thread.status, statusTone(thread.status)) + '</div>' +
+          '<ol class="flow"><li>Entra el mensaje: dueno inicial Florencia-MKT.</li><li>Florencia clasifica, responde o pide ayuda.</li>' +
+          '<li>Si escala o vos intervenis, pasa a humano.</li><li>Devolves a Florencia o cerras el caso.</li></ol>' +
+          '<p class="hint">SCC registra y audita. El envio automatico de respuestas lo ejecuta Florencia fuera de SCC; aca no hay motor de IA propio.</p>';
+      }
+
       function renderProfile(thread) {
         const profile = thread.profile;
         return '<div class="person-line"><div class="avatar">' + initials(thread.title) + '</div><div class="person-main"><strong>' +
@@ -712,41 +838,47 @@ export const dashboardHtml = String.raw`<!doctype html>
         const button = event.target.closest("[data-reply-decision]");
         if (!button) return;
         const reason = document.getElementById("control-reason").value.trim() || "Decision humana desde consola SCC.";
-        await postJson("/api/suggested-reply-decision", {
-          replyId: button.dataset.replyId,
-          decidedBy: button.dataset.replyDecision === "escalate_esteban" ? "esteban" : "operador-humano",
-          decision: button.dataset.replyDecision,
-          reason
-        });
-        await load(selectedThreadId);
+        await guarded(button, "Decision registrada.", async () => {
+          await postJson("/api/suggested-reply-decision", {
+            replyId: button.dataset.replyId,
+            decidedBy: button.dataset.replyDecision === "escalate_esteban" ? "esteban" : "operador-humano",
+            decision: button.dataset.replyDecision,
+            reason
+          });
+          await load(selectedThreadId);
+        })();
       });
 
       suggestedRepliesEl.addEventListener("click", async (event) => {
         const button = event.target.closest("[data-send-reply-id]");
         if (!button) return;
-        await postJson("/api/suggested-reply-send", {
-          replyId: button.dataset.sendReplyId,
-          actorId: "operador-humano"
-        });
-        await load(selectedThreadId);
+        await guarded(button, "Respuesta enviada al usuario.", async () => {
+          await postJson("/api/suggested-reply-send", {
+            replyId: button.dataset.sendReplyId,
+            actorId: "operador-humano"
+          });
+          await load(selectedThreadId);
+        })();
       });
 
       async function recordOperatorIntervention() {
-        const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
+        const thread = needConversation();
+        if (!thread) return false;
         const textEl = document.getElementById("control-reason");
         const text = textEl.value.trim();
-        if (!thread || !text) { textEl.focus(); return; }
+        if (!text) { toast("Escribi la nota interna antes de guardarla.", "error"); textEl.focus(); return false; }
         await postJson("/api/operator-intervention", { conversationId: thread.id, actorId: "operador-humano", text });
         textEl.value = "";
         await load(thread.id);
       }
 
       async function sendOperatorReply() {
-        const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
+        const thread = needConversation();
+        if (!thread) return false;
         const textEl = document.getElementById("operator-text");
         const text = textEl.value.trim();
         const attachments = await readSelectedAttachments();
-        if (!thread || (!text && attachments.length === 0)) { textEl.focus(); return; }
+        if (!text && attachments.length === 0) { toast("Escribi una respuesta o adjunta un archivo.", "error"); textEl.focus(); return false; }
         await postJson("/api/operator-reply", { conversationId: thread.id, actorId: "operador-humano", text, attachments });
         textEl.value = "";
         operatorAttachmentsEl.value = "";
@@ -778,9 +910,14 @@ export const dashboardHtml = String.raw`<!doctype html>
 
       async function runMktAgent(action) {
         const target = currentTarget();
+        if (!target) { toast("Elegi una conversacion con un mensaje entrante.", "error"); return false; }
         const outputEl = document.getElementById("mkt-output");
-        const output = outputEl.value.trim();
-        if (!target || !output) { outputEl.focus(); return; }
+        const defaults = {
+          classify: "Clasificada por operador desde SCC (sin detalle).",
+          escalate: "Florencia pidio ayuda desde SCC (sin detalle)."
+        };
+        const output = outputEl.value.trim() || defaults[action] || "";
+        if (!output) { toast("Escribi el borrador de Florencia antes de registrarlo.", "error"); outputEl.focus(); return false; }
         await postJson("/api/mkt-agent", {
           conversationId: target.conversationId,
           inboxItemType: target.inboxItemType,
@@ -795,9 +932,10 @@ export const dashboardHtml = String.raw`<!doctype html>
 
       async function createSuggestedReply() {
         const target = currentTarget();
+        if (!target) { toast("Elegi una conversacion con un mensaje entrante.", "error"); return false; }
         const textEl = document.getElementById("suggested-reply-text");
         const text = textEl.value.trim();
-        if (!target || !text) { textEl.focus(); return; }
+        if (!text) { toast("Escribi el texto de la respuesta sugerida.", "error"); textEl.focus(); return false; }
         await postJson("/api/suggested-reply", {
           conversationId: target.conversationId,
           inboxItemType: target.inboxItemType,
@@ -810,10 +948,15 @@ export const dashboardHtml = String.raw`<!doctype html>
       }
 
       async function changeConversationControl(action) {
-        const thread = getThreads().find((item) => item.id === selectedThreadId && item.kind === "conversation");
+        const thread = needConversation();
+        if (!thread) return false;
         const reasonEl = document.getElementById("control-reason");
-        const reason = reasonEl.value.trim();
-        if (!thread || !reason) { reasonEl.focus(); return; }
+        const defaultReasons = {
+          take_control: "Asignada a humano desde consola SCC.",
+          return_to_agent: "Devuelta a Florencia-MKT desde consola SCC.",
+          resolve: "Caso cerrado desde consola SCC."
+        };
+        const reason = reasonEl.value.trim() || defaultReasons[action];
         await postJson("/api/conversation-control", {
           conversationId: thread.id,
           actorId: action === "return_to_agent" ? "florencia-mkt" : "operador-humano",
@@ -867,6 +1010,7 @@ export const dashboardHtml = String.raw`<!doctype html>
         return escapeHtml(value).replace(/\x60/g, "&#96;");
       }
       load().catch((error) => {
+        toast("No se pudo cargar el inbox: " + error.message, "error");
         statusEl.textContent = "Error";
         threadEl.innerHTML = '<div class="empty">' + escapeHtml(error.message) + '</div>';
       });
