@@ -3,7 +3,16 @@ export interface InstagramOutboundClient {
     igBusinessAccountId: string;
     recipientId: string;
     text: string;
+    attachments?: InstagramOutboundAttachment[];
   }): Promise<InstagramSendResult>;
+}
+
+export interface InstagramOutboundAttachment {
+  type: "image" | "video" | "audio" | "file" | "unknown";
+  name: string;
+  mimeType: string;
+  dataUrl: string;
+  sizeBytes: number;
 }
 
 export interface InstagramSendResult {
@@ -22,6 +31,7 @@ export class HttpInstagramOutboundClient implements InstagramOutboundClient {
     igBusinessAccountId: string;
     recipientId: string;
     text: string;
+    attachments?: InstagramOutboundAttachment[];
   }): Promise<InstagramSendResult> {
     const response = await fetch(this.endpoint, {
       method: "POST",

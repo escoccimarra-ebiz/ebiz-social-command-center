@@ -9,6 +9,7 @@ import type {
   ParticipantProfile,
   SocialAccount,
   SocialComment,
+  SocialAttachment,
   SocialInboxState,
   SocialMessage,
   SuggestedReply,
@@ -202,6 +203,7 @@ export class SocialInboxStore {
     text: string;
     providerMessageId?: string;
     createdAt: string;
+    attachments?: SocialAttachment[];
   }): SocialMessage {
     const message = this.upsertMessage({
       id: stableId("message", "outbound", params.conversationId, params.actorId, params.createdAt),
@@ -213,7 +215,8 @@ export class SocialInboxStore {
       authorExternalId: params.actorId,
       status: "sent",
       receivedAt: params.createdAt,
-      createdAt: params.createdAt
+      createdAt: params.createdAt,
+      attachments: params.attachments
     });
 
     this.addAuditLog({
