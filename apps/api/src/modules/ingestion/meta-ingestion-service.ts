@@ -20,7 +20,18 @@ export function ingestMetaWebhook(
     store.upsertParticipantProfile(event.participantProfile);
 
     if (event.type === "message") {
-      store.upsertConversation(event.conversation);
+      const existing = store.getConversation(event.conversation.id);
+      store.upsertConversation(
+        existing === undefined
+          ? { ...event.conversation, ownerActorId: event.conversation.ownerActorId ?? "florencia-mkt" }
+          : {
+              // Un mensaje nuevo no debe pisar dueño/escalamiento/intervención humana existentes.
+              ...existing,
+              status: existing.status === "archived" ? "received" : existing.status,
+              ownerActorId: existing.ownerActorId ?? "florencia-mkt",
+              updatedAt: event.conversation.updatedAt
+            }
+      );
       store.upsertMessage(event.message);
       importedMessages += 1;
       store.addAuditLog({

@@ -63,3 +63,9 @@ The runtime serves a private dashboard from LXC121:
 - `/api/meta-webhook` accepts normalized Meta webhook envelopes for internal ingest tests.
 - `/api/human-gate` records internal approvals, rejections, and escalations.
 - `/api/demo-seed` creates test-only demo events for smoke testing.
+
+## Modelo de operacion: Florencia-MKT por defecto
+
+- Toda conversacion de Instagram nace con `ownerActorId = "florencia-mkt"` (agente LXC104). Mensajes posteriores no pisan dueno, estado ni escalamiento.
+- SCC es la consola de supervision/intervencion: registra y audita; no tiene motor de IA propio ni dispara respuestas automaticas. El envio automatico lo ejecuta Florencia fuera de SCC (no verificado desde este repo).
+- Botones del panel "Supervision y control": Clasificar/Borrador/Pedir ayuda (`/api/mkt-agent`), Asignar a humano / Asignar a Florencia / Cerrar caso (`/api/conversation-control`), Guardar nota interna (`/api/operator-intervention`, no cambia el dueno), Responder al usuario (`/api/operator-reply`).
