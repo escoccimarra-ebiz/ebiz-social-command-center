@@ -621,6 +621,7 @@ export const dashboardHtml = String.raw`<!doctype html>
           badge(thread.status, statusTone(thread.status)) + badge("dueno: " + thread.owner, thread.owner === "esteban" ? "danger" : "blue") +
           (thread.conversation?.escalationReason ? badge(thread.conversation.escalationReason, "warn") : "") + '</div></div>';
         threadEl.innerHTML = conversationMessages(thread);
+        threadEl.scrollTop = threadEl.scrollHeight;
         profileEl.innerHTML = renderProfile(thread);
         suggestedRepliesEl.innerHTML = renderSuggestedReplies(thread);
         auditEl.innerHTML = renderAudit(thread);
@@ -656,7 +657,11 @@ export const dashboardHtml = String.raw`<!doctype html>
           const label = attachment.name || attachment.type || "adjunto";
           const media = attachment.type === "image" && href
             ? '<img src="' + escapeAttribute(href) + '" alt="' + escapeAttribute(label) + '" loading="lazy" />'
-            : "";
+            : attachment.type === "video" && href
+              ? '<video src="' + escapeAttribute(href) + '" controls preload="metadata" style="max-width:100%;max-height:280px"></video>'
+              : attachment.type === "audio" && href
+                ? '<audio src="' + escapeAttribute(href) + '" controls preload="metadata"></audio>'
+                : "";
           const link = href
             ? '<a href="' + escapeAttribute(href) + '" target="_blank" rel="noreferrer">Abrir ' + escapeHtml(label) + '</a>'
             : '<span class="muted">' + escapeHtml(label) + '</span>';
