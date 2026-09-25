@@ -54,6 +54,11 @@ export class SocialInboxStore {
     this.state.suggestedReplies = structuredClone(nextState.suggestedReplies ?? []);
   }
 
+  /** Vista de solo lectura sin clonar; no mutar. */
+  peek(): Readonly<SocialInboxState> {
+    return this.state;
+  }
+
   snapshot(): SocialInboxState {
     return structuredClone(this.state);
   }
@@ -203,6 +208,7 @@ export class SocialInboxStore {
     providerMessageId?: string;
     createdAt: string;
     attachments?: SocialAttachment[];
+    automated?: boolean;
   }): SocialMessage {
     const message = this.upsertMessage({
       id: stableId("message", "outbound", params.conversationId, params.actorId, params.createdAt),
@@ -234,7 +240,9 @@ export class SocialInboxStore {
     this.updateConversation(params.conversationId, {
       status: "normalized",
       ownerActorId: "florencia-mkt",
-      lastHumanInterventionAt: params.createdAt,
+      ...(params.automated === true
+        ? { lastAgentActionAt: params.createdAt }
+        : { lastHumanInterventionAt: params.createdAt }),
       updatedAt: params.createdAt
     });
 

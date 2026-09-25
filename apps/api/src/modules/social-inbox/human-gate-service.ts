@@ -69,6 +69,8 @@ interface OperatorReplyParams {
   sentAt: string;
   client: InstagramOutboundClient;
   attachments?: SocialAttachment[];
+  /** Respuesta automatica de Florencia-MKT: no cuenta como intervencion humana. */
+  automated?: boolean;
 }
 
 interface SuggestedReplySendParams {
@@ -422,7 +424,8 @@ export async function sendOperatorReplyToInstagram(
     text: params.text,
     providerMessageId: result.providerMessageId,
     createdAt: params.sentAt,
-    attachments: params.attachments
+    attachments: params.attachments,
+    automated: params.automated
   });
 }
 
