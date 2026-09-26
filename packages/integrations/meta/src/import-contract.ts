@@ -99,7 +99,7 @@ function importMessage(
     externalThreadId: messageEvent.sender.id,
     participantExternalId: messageEvent.sender.id,
     status: "received",
-    ownerActorId: "florencia-mkt",
+    ownerActorId: "ebiz-commercial",
     createdAt: receivedAt,
     updatedAt: receivedAt
   };

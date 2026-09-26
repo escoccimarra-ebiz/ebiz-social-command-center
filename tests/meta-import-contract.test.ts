@@ -169,11 +169,11 @@ describe("Meta import contract", () => {
 });
 
 describe("default ownership", () => {
-  it("assigns new Instagram conversations to Florencia-MKT and keeps human takeover on later messages", () => {
+  it("assigns new Instagram conversations to eBiz commercial and keeps human takeover on later messages", () => {
     const store = new SocialInboxStore();
     ingestMetaWebhook(store, fixture);
     const conversationId = store.snapshot().conversations[0]?.id ?? "";
-    assert.equal(store.getConversation(conversationId)?.ownerActorId, "florencia-mkt");
+    assert.equal(store.getConversation(conversationId)?.ownerActorId, "ebiz-commercial");
 
     store.updateConversation(conversationId, { ownerActorId: "operador-humano", status: "pending_human_approval" });
     ingestMetaWebhook(store, fixture);

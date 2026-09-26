@@ -239,7 +239,7 @@ describe("Florencia-MKT human gate flow", () => {
     assert.equal(message.direction, "outbound");
     assert.equal(message.status, "sent");
     assert.equal(message.externalId, "ig-mid-1");
-    assert.equal(snapshot.conversations[0]?.ownerActorId, "florencia-mkt");
+    assert.equal(snapshot.conversations[0]?.ownerActorId, "operador-humano");
     assert.equal(snapshot.auditLog.at(-1)?.action, "conversation.operator_reply_sent");
   });
 

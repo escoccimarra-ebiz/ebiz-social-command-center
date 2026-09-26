@@ -2,6 +2,8 @@ import { importMetaWebhook } from "../../../../../packages/integrations/meta/src
 import type { MetaWebhookEnvelope } from "../../../../../packages/shared/src/types/meta-webhook.js";
 import { SocialInboxStore } from "../social-inbox/social-inbox-store.js";
 
+export const DEFAULT_COMMERCIAL_OWNER = "ebiz-commercial";
+
 export interface IngestionResult {
   importedMessages: number;
   importedComments: number;
@@ -23,12 +25,12 @@ export function ingestMetaWebhook(
       const existing = store.getConversation(event.conversation.id);
       store.upsertConversation(
         existing === undefined
-          ? { ...event.conversation, ownerActorId: event.conversation.ownerActorId ?? "florencia-mkt" }
+          ? { ...event.conversation, ownerActorId: event.conversation.ownerActorId ?? DEFAULT_COMMERCIAL_OWNER }
           : {
               // Un mensaje nuevo no debe pisar dueño/escalamiento/intervención humana existentes.
               ...existing,
               status: existing.status === "archived" ? "received" : existing.status,
-              ownerActorId: existing.ownerActorId ?? "florencia-mkt",
+              ownerActorId: existing.ownerActorId ?? DEFAULT_COMMERCIAL_OWNER,
               updatedAt: event.conversation.updatedAt
             }
       );

@@ -19,7 +19,7 @@ import {
 } from "./modules/instagram/instagram-outbound-client.js";
 import {
   AutoReplyService,
-  HttpFlorenciaDecisionClient,
+  HttpCommercialDecisionClient,
   readAutoReplyConfig
 } from "./modules/auto-reply/auto-reply-service.js";
 import { SocialInboxStore, stableId } from "./modules/social-inbox/social-inbox-store.js";
@@ -50,9 +50,9 @@ const autoReply = new AutoReplyService({
   config: autoReplyConfig,
   outboundClient: instagramOutboundClient,
   decisionClient: autoReplyConfig.decisionUrlConfigured
-    ? new HttpFlorenciaDecisionClient(
-        process.env.SCC_FLORENCIA_DECISION_URL as string,
-        process.env.SCC_FLORENCIA_SECRET ?? process.env.SCC_INTERNAL_SECRET
+    ? new HttpCommercialDecisionClient(
+        autoReplyConfig.decisionUrl,
+        process.env.SCC_EBIZ_DECISION_SECRET ?? process.env.SCC_FLORENCIA_SECRET ?? process.env.SCC_INTERNAL_SECRET
       )
     : undefined,
   persist: () => repository.save(store.snapshot())
@@ -558,7 +558,13 @@ function requireInboxItemType(value: unknown): InboxItemType {
 }
 
 function requireHumanGateActor(value: unknown): HumanGateActor {
-  if (value === "florencia-mkt" || value === "esteban" || value === "operador-humano" || value === "system") {
+  if (
+    value === "ebiz-commercial" ||
+    value === "florencia-mkt" ||
+    value === "esteban" ||
+    value === "operador-humano" ||
+    value === "system"
+  ) {
     return value;
   }
 

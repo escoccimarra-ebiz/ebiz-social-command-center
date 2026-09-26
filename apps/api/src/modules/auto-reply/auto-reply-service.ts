@@ -1,42 +1,45 @@
 import type {
   Conversation,
   EscalationReason,
+  HumanGateActor,
   SocialMessage
 } from "../../../../../packages/shared/src/types/social-inbox.js";
 import type { InstagramOutboundClient } from "../instagram/instagram-outbound-client.js";
 import { escalateAsFlorencia, sendOperatorReplyToInstagram } from "../social-inbox/human-gate-service.js";
 import { SocialInboxStore, stableId } from "../social-inbox/social-inbox-store.js";
 
-export const AUTO_REPLY_OWNER = "florencia-mkt";
+export const AUTO_REPLY_OWNER = "ebiz-commercial" as const;
+const LEGACY_AUTO_REPLY_OWNER: HumanGateActor = "florencia-mkt";
 const ELIGIBLE_STATUSES = new Set(["received", "normalized"]);
 const MAX_FAILED_ATTEMPTS = 3;
 const HISTORY_LIMIT = 10;
 
-export interface FlorenciaDecisionRequest {
-  agent: "florencia-mkt";
+export interface CommercialDecisionRequest {
+  agent: typeof AUTO_REPLY_OWNER;
+  role: "commercial_operator";
   channel: string;
   conversationId: string;
   message: { id: string; text: string; receivedAt: string; attachmentCount: number };
   history: Array<{ direction: string; author: string; text: string; at: string }>;
 }
 
-export type FlorenciaDecision =
+export type CommercialDecision =
   | { action: "reply"; text: string; sensitive?: boolean }
   | { action: "escalate"; reason: EscalationReason; detail: string }
   | { action: "skip"; detail?: string };
 
-export interface FlorenciaDecisionClient {
-  decide(request: FlorenciaDecisionRequest): Promise<FlorenciaDecision>;
+export interface CommercialDecisionClient {
+  decide(request: CommercialDecisionRequest): Promise<CommercialDecision>;
 }
 
-export class HttpFlorenciaDecisionClient implements FlorenciaDecisionClient {
+export class HttpCommercialDecisionClient implements CommercialDecisionClient {
   constructor(
     private readonly endpoint: string,
     private readonly sharedSecret?: string,
     private readonly timeoutMs = 20000
   ) {}
 
-  async decide(request: FlorenciaDecisionRequest): Promise<FlorenciaDecision> {
+  async decide(request: CommercialDecisionRequest): Promise<CommercialDecision> {
     const response = await fetch(this.endpoint, {
       method: "POST",
       headers: {
@@ -48,39 +51,45 @@ export class HttpFlorenciaDecisionClient implements FlorenciaDecisionClient {
     });
     const rawText = await response.text();
     if (!response.ok) {
-      throw new Error(`Florencia decision endpoint answered ${response.status}`);
+      throw new Error(`eBiz commercial decision endpoint answered ${response.status}`);
     }
     return parseDecision(rawText.length === 0 ? undefined : JSON.parse(rawText));
   }
 }
 
-export function parseDecision(raw: unknown): FlorenciaDecision {
+export function parseDecision(raw: unknown): CommercialDecision {
   const value = (raw ?? {}) as Record<string, unknown>;
   if (value.action === "reply") {
     if (typeof value.text !== "string" || value.text.trim().length === 0) {
-      throw new Error("Florencia decision 'reply' without text");
+      throw new Error("eBiz commercial decision 'reply' without text");
     }
     return { action: "reply", text: value.text, sensitive: value.sensitive === true };
   }
   if (value.action === "escalate") {
     const reason: EscalationReason =
       value.reason === "sensitive" || value.reason === "missing_info" ? value.reason : "ambiguous";
-    return { action: "escalate", reason, detail: typeof value.detail === "string" && value.detail !== "" ? value.detail : "Escalado por Florencia-MKT" };
+    return {
+      action: "escalate",
+      reason,
+      detail: typeof value.detail === "string" && value.detail !== "" ? value.detail : "Escalado por eBiz comercial"
+    };
   }
   if (value.action === "skip") {
     return { action: "skip", detail: typeof value.detail === "string" ? value.detail : undefined };
   }
-  throw new Error("Florencia decision has unknown action");
+  throw new Error("eBiz commercial decision has unknown action");
 }
 
 export interface AutoReplyConfig {
   enabled: boolean;
   decisionUrlConfigured: boolean;
+  decisionUrl: string;
   outboundConfigured: boolean;
   cutoff: string;
   maxAgeMs: number;
-  /** Ventana tras una intervencion humana durante la cual Florencia-MKT no responde sola. */
+  /** Ventana tras una intervencion humana durante la cual eBiz comercial no responde solo. */
   humanQuietMs: number;
+  eligibleOwners: HumanGateActor[];
 }
 
 export function readAutoReplyConfig(env: NodeJS.ProcessEnv, now: Date): AutoReplyConfig {
@@ -90,13 +99,18 @@ export function readAutoReplyConfig(env: NodeJS.ProcessEnv, now: Date): AutoRepl
   }
   const maxAgeMinutes = Number.parseInt(env.SCC_AUTO_REPLY_MAX_AGE_MINUTES ?? "60", 10);
   const quietMinutes = Number.parseInt(env.SCC_AUTO_REPLY_HUMAN_QUIET_MINUTES ?? "30", 10);
+  const decisionUrl = env.SCC_EBIZ_DECISION_URL ?? env.SCC_FLORENCIA_DECISION_URL ?? "";
   return {
     humanQuietMs: (Number.isFinite(quietMinutes) && quietMinutes >= 0 ? quietMinutes : 30) * 60000,
     enabled: env.SCC_AUTO_REPLY_ENABLED === "true",
-    decisionUrlConfigured: (env.SCC_FLORENCIA_DECISION_URL ?? "") !== "",
+    decisionUrl,
+    decisionUrlConfigured: decisionUrl !== "",
     outboundConfigured: (env.SCC_META_OUTBOUND_URL ?? "") !== "",
     cutoff,
-    maxAgeMs: (Number.isFinite(maxAgeMinutes) && maxAgeMinutes > 0 ? maxAgeMinutes : 60) * 60000
+    maxAgeMs: (Number.isFinite(maxAgeMinutes) && maxAgeMinutes > 0 ? maxAgeMinutes : 60) * 60000,
+    eligibleOwners: env.SCC_AUTO_REPLY_INCLUDE_LEGACY_FLORENCIA === "false"
+      ? [AUTO_REPLY_OWNER]
+      : [AUTO_REPLY_OWNER, LEGACY_AUTO_REPLY_OWNER]
   };
 }
 
@@ -111,6 +125,7 @@ export type AutoReplyOutcome =
 export interface AutoReplyStatus {
   enabled: boolean;
   owner: typeof AUTO_REPLY_OWNER;
+  eligibleOwners: HumanGateActor[];
   status: "disabled" | "idle" | "blocked" | "error";
   cutoff: string;
   blockers: string[];
@@ -124,7 +139,7 @@ export interface AutoReplyStatus {
 export interface AutoReplyDeps {
   store: SocialInboxStore;
   config: AutoReplyConfig;
-  decisionClient?: FlorenciaDecisionClient;
+  decisionClient?: CommercialDecisionClient;
   outboundClient: InstagramOutboundClient;
   persist: () => Promise<void>;
   now?: () => Date;
@@ -159,6 +174,7 @@ export class AutoReplyService {
     return {
       enabled: this.enabled,
       owner: AUTO_REPLY_OWNER,
+      eligibleOwners: this.deps.config.eligibleOwners,
       status: !this.enabled
         ? "disabled"
         : blockers.length > 0
@@ -249,8 +265,9 @@ export class AutoReplyService {
           text: message.text,
           at: message.receivedAt
         }));
-      const decision = await (this.deps.decisionClient as FlorenciaDecisionClient).decide({
+      const decision = await (this.deps.decisionClient as CommercialDecisionClient).decide({
         agent: AUTO_REPLY_OWNER,
+        role: "commercial_operator",
         channel: account.channel,
         conversationId,
         message: {
@@ -282,7 +299,7 @@ export class AutoReplyService {
           inboxItemId: inbound.id,
           createdAt: this.now(),
           reason: decision.action === "escalate" ? decision.reason : "sensitive",
-          detail: decision.action === "escalate" ? decision.detail : "Respuesta marcada sensible por Florencia-MKT"
+          detail: decision.action === "escalate" ? decision.detail : "Respuesta marcada sensible por eBiz comercial"
         });
         this.audit("auto_reply.escalated", inbound.id, conversationId);
         await this.deps.persist();
@@ -313,7 +330,7 @@ export class AutoReplyService {
     const { store, config } = this.deps;
     const snapshot = store.peek();
     const conversation = snapshot.conversations.find((item) => item.id === conversationId);
-    if (conversation === undefined || conversation.ownerActorId !== AUTO_REPLY_OWNER) {
+    if (conversation === undefined || !this.deps.config.eligibleOwners.includes(conversation.ownerActorId ?? AUTO_REPLY_OWNER)) {
       return undefined;
     }
     if (!ELIGIBLE_STATUSES.has(conversation.status)) {
@@ -373,7 +390,7 @@ export class AutoReplyService {
   private blockers(): string[] {
     const blockers: string[] = [];
     if (!this.deps.config.decisionUrlConfigured || this.deps.decisionClient === undefined) {
-      blockers.push("SCC_FLORENCIA_DECISION_URL no configurada (endpoint de decision Florencia-MKT/LXC104)");
+      blockers.push("SCC_EBIZ_DECISION_URL no configurada (endpoint de decision eBiz/LXC105)");
     }
     if (!this.deps.config.outboundConfigured) {
       blockers.push("SCC_META_OUTBOUND_URL no configurada (canal de salida Instagram)");

@@ -4,8 +4,8 @@ import {
   AutoReplyService,
   parseDecision,
   type AutoReplyConfig,
-  type FlorenciaDecision,
-  type FlorenciaDecisionClient
+  type CommercialDecision,
+  type CommercialDecisionClient
 } from "../apps/api/src/modules/auto-reply/auto-reply-service.js";
 import type { InstagramOutboundClient } from "../apps/api/src/modules/instagram/instagram-outbound-client.js";
 import { SocialInboxStore } from "../apps/api/src/modules/social-inbox/social-inbox-store.js";
@@ -21,14 +21,16 @@ const baseConfig: AutoReplyConfig = {
   outboundConfigured: true,
   cutoff: "2026-09-25T11:00:00.000Z",
   maxAgeMs: 60 * 60000,
-  humanQuietMs: 30 * 60000
+  humanQuietMs: 30 * 60000,
+  decisionUrl: "http://decision.local/decide",
+  eligibleOwners: ["ebiz-commercial", "florencia-mkt"]
 };
 
 function setup(options: {
   conversation?: Partial<Conversation>;
   inbound?: { receivedAt?: string; author?: string };
   config?: Partial<AutoReplyConfig>;
-  decide?: () => Promise<FlorenciaDecision>;
+  decide?: () => Promise<CommercialDecision>;
   send?: () => Promise<void>;
   noDecisionClient?: boolean;
 }) {
@@ -67,7 +69,7 @@ function setup(options: {
     createdAt: receivedAt
   });
   const calls = { decide: 0, send: 0, saves: 0 };
-  const decisionClient: FlorenciaDecisionClient = {
+  const decisionClient: CommercialDecisionClient = {
     async decide() {
       calls.decide += 1;
       return (options.decide ?? (async () => ({ action: "reply", text: "Hola! Te paso info." })))();
@@ -93,13 +95,13 @@ function setup(options: {
   return { store, service, calls };
 }
 
-describe("Florencia-MKT auto reply", () => {
+describe("eBiz commercial auto reply", () => {
   it("replies to an eligible Instagram inbound and records it as agent action", async () => {
     const { store, service, calls } = setup({});
     assert.equal(await service.processConversation(CONV), "sent");
     assert.equal(calls.send, 1);
     const conversation = store.getConversation(CONV);
-    assert.equal(conversation?.ownerActorId, "florencia-mkt");
+    assert.equal(conversation?.ownerActorId, "ebiz-commercial");
     assert.equal(conversation?.lastHumanInterventionAt, undefined);
     assert.equal(conversation?.lastAgentActionAt, NOW.toISOString());
     assert.equal(store.snapshot().messages.filter((m) => m.direction === "outbound").length, 1);
@@ -193,7 +195,7 @@ describe("Florencia-MKT auto reply", () => {
     assert.equal(ctx.store.getConversation(CONV)?.ownerActorId, "operador-humano");
   });
 
-  it("escalates to a human instead of replying when Florencia escalates", async () => {
+  it("escalates to a human instead of replying when eBiz commercial escalates", async () => {
     const { store, service, calls } = setup({
       decide: async () => ({ action: "escalate", reason: "sensitive", detail: "reclamo" })
     });
@@ -244,7 +246,7 @@ describe("Florencia-MKT auto reply", () => {
     assert.equal(calls.send, 1);
   });
 
-  it("reports the exact blocker when the LXC104 decision endpoint is missing", async () => {
+  it("reports the exact blocker when the eBiz decision endpoint is missing", async () => {
     const { service, calls } = setup({
       noDecisionClient: true,
       config: { decisionUrlConfigured: false }
@@ -252,8 +254,8 @@ describe("Florencia-MKT auto reply", () => {
     assert.equal(await service.processConversation(CONV), "blocked");
     const status = service.status();
     assert.equal(status.status, "blocked");
-    assert.match(status.blockers[0] ?? "", /SCC_FLORENCIA_DECISION_URL/);
-    assert.match(status.lastError ?? "", /SCC_FLORENCIA_DECISION_URL/);
+    assert.match(status.blockers[0] ?? "", /SCC_EBIZ_DECISION_URL/);
+    assert.match(status.lastError ?? "", /SCC_EBIZ_DECISION_URL/);
     assert.equal(calls.send, 0);
   });
 
@@ -290,7 +292,7 @@ describe("Florencia-MKT auto reply", () => {
     const { service } = setup({});
     const health = getHealth(service.status());
     assert.equal(health.outboundPolicy.auto_reply, true);
-    assert.equal(health.autoReply?.owner, "florencia-mkt");
+    assert.equal(health.autoReply?.owner, "ebiz-commercial");
     assert.equal(getHealth().outboundPolicy.auto_reply, false);
   });
 

@@ -13,7 +13,7 @@ export type InboxItemStatus =
   | "sent"
   | "failed";
 export type InboxItemType = "message" | "comment";
-export type HumanGateActor = "florencia-mkt" | "esteban" | "operador-humano" | "system";
+export type HumanGateActor = "ebiz-commercial" | "florencia-mkt" | "esteban" | "operador-humano" | "system";
 export type SensitivityLevel = "standard" | "sensitive";
 export type EscalationReason = "ambiguous" | "missing_info" | "sensitive";
 export type SuggestedReplyState =
