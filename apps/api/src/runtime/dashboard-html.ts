@@ -620,7 +620,7 @@ export const dashboardHtml = String.raw`<!doctype html>
             id: conversation.id,
             title: profile?.displayName ?? conversation.participantExternalId,
             status: conversation.status,
-            owner: conversation.ownerActorId ?? "florencia-mkt",
+            owner: conversation.ownerActorId ?? "ebiz-commercial",
             preview: latest?.text || "(sin texto visible)",
             at: latest?.createdAt ?? conversation.updatedAt,
             conversation,
@@ -959,7 +959,7 @@ export const dashboardHtml = String.raw`<!doctype html>
         const reason = reasonEl.value.trim() || defaultReasons[action];
         await postJson("/api/conversation-control", {
           conversationId: thread.id,
-          actorId: action === "return_to_agent" ? "florencia-mkt" : "operador-humano",
+          actorId: action === "return_to_agent" ? "ebiz-commercial" : "operador-humano",
           action,
           reason
         });

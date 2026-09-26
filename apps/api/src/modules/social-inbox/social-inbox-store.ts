@@ -239,7 +239,7 @@ export class SocialInboxStore {
 
     this.updateConversation(params.conversationId, {
       status: "normalized",
-      ownerActorId: "florencia-mkt",
+      ownerActorId: params.actorId,
       ...(params.automated === true
         ? { lastAgentActionAt: params.createdAt }
         : { lastHumanInterventionAt: params.createdAt }),
